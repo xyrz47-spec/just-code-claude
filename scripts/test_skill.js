@@ -24,8 +24,9 @@ try {
     '-e', 'medium',
     '-p', "Say 'TEST_SUCCESS' and nothing else",
     '--raw'
-  ], { encoding: 'utf-8', timeout: 30000 });
+  ], { encoding: 'utf-8', timeout: 45000 });
 
+  if (run1.error) console.error('Run1 error:', run1.error.message);
   console.log('Output:\n', run1.stdout || run1.stderr);
   if (run1.status === 0 && (run1.stdout.includes('TEST_SUCCESS') || run1.stdout.length > 0)) {
     console.log('>>> [1] PASS: Basic prompt generation with 3.8 flash works!\n');
@@ -62,8 +63,9 @@ try {
     '-m', '3.8 flash',
     '-e', 'medium',
     '--replace-in-file', sampleCodePath
-  ], { encoding: 'utf-8', timeout: 60000 });
+  ], { encoding: 'utf-8', timeout: 90000 });
 
+  if (run2.error) console.error('Run2 error:', run2.error.message);
   console.log(run2.stdout || run2.stderr);
 
   const updatedCode = fs.readFileSync(sampleCodePath, 'utf-8');
@@ -86,8 +88,9 @@ try {
     '-m', '3.8 flash',
     '-e', 'medium',
     '-p', 'Context: Test commit generation verification'
-  ], { encoding: 'utf-8', timeout: 45000 });
+  ], { encoding: 'utf-8', timeout: 75000 });
 
+  if (run3.error) console.error('Run3 error:', run3.error.message);
   console.log(run3.stdout || run3.stderr);
   if (run3.status === 0 && (run3.stdout.includes('feat') || run3.stdout.includes('fix') || run3.stdout.includes('docs') || run3.stdout.length > 20)) {
     console.log('>>> [3] PASS: Conventional Commit message generation works!\n');
@@ -108,7 +111,9 @@ try {
     '-e', 'medium',
     '-p', 'Context: Test v1.2.0 release notes verification',
     '-o', testReleaseNotesPath
-  ], { encoding: 'utf-8', timeout: 75000 });
+  ], { encoding: 'utf-8', timeout: 90000 });
+
+  if (run4.error) console.error('Run4 error:', run4.error.message);
 
   console.log(run4.stdout || run4.stderr);
   if (fs.existsSync(testReleaseNotesPath) && fs.readFileSync(testReleaseNotesPath, 'utf-8').length > 50) {

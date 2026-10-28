@@ -57,6 +57,7 @@ Claude writes code; Gemini writes text.
 - Git Commits: Run 'just-code-claude --commit' or '--commit-msg' (Gemini 3.8 flash).
 - Pull Requests: Run 'just-code-claude --pr-desc' (Gemini 4 argon).
 - In-Code Copy: Insert '__AGY__("...")' directives and run 'just-code-claude --replace-in-file'.
+- Edge Cases: 1-2 line critical security/runtime warnings and technical inline code comments are permitted.
 "@
 
 if (Test-Path $globalClaudeMd) {

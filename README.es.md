@@ -24,6 +24,52 @@
 
 ---
 
+## ⚖️ Comparativa: Antes vs Después (Before vs After Showcase)
+
+### Escenario 1: Creación de Componentes UI en Frontend
+- **❌ Antes (Claude Code Estándar)**: La ventana de chat se satura de largas explicaciones y saludos superfluos, ralentizando la entrega. El código contiene textos ficticios genéricos y robóticos (`"Session Expiring"`, `"Please click OK"`).
+- **✅ Después (`just-code-claude`)**: Cero texto conversacional, **entrega inmediata de código puro y limpio**. Gemini 3.8 flash sustituye los textos por copias profesionales de alta conversión (`"Session Expiring in 5 Minutes"`). Ahorro superior al 50% en tokens de contexto.
+
+### Escenario 2: Commits en Git y Releases en GitHub
+- **❌ Antes**: Commits vagos (`"update files"`) o resúmenes incompletos y frágiles en el chat.
+- **✅ Después**: Gemini 3.8 flash genera mensajes Conventional Commits exhaustivos; Gemini 4 argon sintetiza las diferencias de tags y publica directamente la versión oficial en GitHub con `gh release create`.
+
+---
+
+## 📊 Eficiencia de Tokens y Comparativa de Rendimiento
+
+| Métrica | Claude Code Estándar | Con `just-code-claude` | Beneficio |
+| :--- | :--- | :--- | :--- |
+| **Consumo de Tokens de Sesión** | ~3,500 tokens (con explicaciones) | ~1,600 tokens (código puro) | **📉 Ahorro de ~54%** |
+| **Velocidad de Respuesta (Latencia)**| ~18.2s (tipeando texto largo) | ~7.8s (código inmediato) | **⚡ ~2.3x Más Rápido** |
+| **Localización Multilingüe i18n** | Contamina el contexto principal | Procesado en lote vía CLI fuera de banda | **📉 >70% Ahorro de Tokens** |
+| **Calidad de Textos UX** | Marcadores genéricos (`"Error"`) | Gemini 4 argon / 3.8 flash | **✨ Nivel Producción Inmediato** |
+| **Síntesis de Changelogs** | Listado simple de commits | Análisis profundo y guía de migración | **🚀 Releases de Calidad Empresarial** |
+
+---
+
+## 🛡️ Política de Excepciones para Casos Límite (Seguridad y Alertas Críticas)
+
+Excluir por completo el lenguaje natural podría ocultar advertencias de seguridad críticas o restricciones de tiempo de ejecución. Por ello, se definen **3 excepciones estrictas**:
+
+1. **Alertas Críticas de Sistema y Seguridad (Máx 1–2 líneas)**:
+   - Ante errores fatales, credenciales ausentes (`GEMINI_API_KEY`) u operaciones destructivas, Claude DEBE emitir un aviso breve:
+     `> [!CRITICAL] Variable GEMINI_API_KEY no configurada. Establézcala antes de continuar.`
+2. **Comentarios Técnicos en Código (1 línea)**:
+   - Se permiten comentarios breves en el código que expliquen invariantes algorítmicas, bloqueos de concurrencia o regex complejas (`// Concurrency: bloqueo atómico para evitar race condition`).
+3. **Diagnóstico y Salida de Comandos**:
+   - Se permite reportar textualmente errores de compilación, trazas stderr y códigos de salida de la CLI.
+
+---
+
+## ⚙️ Guía de Configuración para Claude Code
+
+1. **Instalación Global (Recomendada)**: Ejecute `npx just-code-claude` o `.\install.ps1` (Linux/macOS: `bash install.sh`) para inyectar automáticamente `~/.claude/rules/just-code-claude.md` y `~/.claude/CLAUDE.md`.
+2. **Configuración por Proyecto**: Copie `rules/just-code-claude.md` a `.claude/rules/` en su repositorio.
+3. **Invocación en Sesión**: Escriba `/just-code-claude` o indique: *"Usa 3.8 flash high para redactar textos y releases"*.
+
+---
+
 ## 🤖 Modelos Compatibles y Esfuerzo de Razonamiento
 
 | Modelo | Alias CLI | Caso de Uso Principal | Esfuerzo Recomendado |

@@ -78,3 +78,17 @@ Whenever the user instructs Claude to prepare, draft, or publish a release:
 ## 4. Model Selection Rules
 - **`3.8 flash` (`gemini-3.8-flash`)**: Fast UI microcopy, button labels, toasts, Conventional Commits (`effort: medium`).
 - **`4 argon` (`gemini-4-argon`)**: Complex synthesis, Release Notes, GitHub Releases, PR descriptions, architectural RFCs (`effort: high` or `max`).
+
+---
+
+## 5. Edge Case Exception Policy (Safety & Critical Alerts)
+
+To maintain absolute software safety and reliability, Claude is granted **3 strict exceptions** where concise natural language is permitted:
+
+1. **Critical System & Security Warnings (Max 1–2 lines)**:
+   - If a fatal runtime constraint, missing credential (`GEMINI_API_KEY`), security vulnerability, or destructive filesystem operation occurs, Claude MUST output an alert:
+     `> [!CRITICAL] Missing GEMINI_API_KEY: Set environment variable before proceeding.`
+2. **Inline Technical Code Comments (Engineering Only)**:
+   - Concise 1-line technical comments explaining non-obvious algorithms, concurrency locks, regex patterns, or architectural invariants (e.g., `// Concurrency: atomic lock required to prevent race condition`) are permitted. User-facing prose, guides, and docstrings remain strictly delegated to Gemini.
+3. **Command Output & Error Diagnostics**:
+   - Reporting raw exit codes, compiler errors, or CLI error outputs verbatim to assist developer debugging is always permitted.
