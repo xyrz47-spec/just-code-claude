@@ -9,17 +9,17 @@ const fs = require('fs');
 const path = require('path');
 
 const rootDir = path.resolve(__dirname, '..');
-const geminiCallJs = path.join(rootDir, 'scripts', 'gemini_call.js');
+const agyCallJs = path.join(rootDir, 'scripts', 'agy_call.js');
 const tmpDir = path.join(rootDir, 'tmp_test');
 
 if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
 }
 
-console.log('=== [1] Testing basic prompt generation via agy ===');
+console.log('=== [1] Testing basic prompt generation via agy_call.js ===');
 try {
   const run1 = spawnSync(process.execPath, [
-    geminiCallJs,
+    agyCallJs,
     '-p', "Say 'TEST_SUCCESS' and nothing else",
     '--raw'
   ], { encoding: 'utf-8', timeout: 30000 });
@@ -34,7 +34,7 @@ try {
   console.error('>>> [1] FAIL:', e.message);
 }
 
-console.log('=== [2] Testing In-Code String Replacement (__GEMINI__ placeholders with lang) ===');
+console.log('=== [2] Testing In-Code String Replacement (__AGY__ & __GEMINI__ placeholders) ===');
 const sampleCodePath = path.join(tmpDir, 'SampleComponent.jsx');
 const sampleCode = `
 import React from 'react';
@@ -42,10 +42,10 @@ import React from 'react';
 export function WarningBanner() {
   return (
     <div className="alert-warning">
-      <h3>__GEMINI__("Session expiry warning title", "English")__</h3>
+      <h3>__AGY__("Session expiry warning title", "English")__</h3>
       <p>__GEMINI__("Notice explaining auto-logout in 5 minutes", "English")__</p>
       <button className="btn-extend">
-        __GEMINI__("Extend session CTA button", "English")__
+        __AGY__("Extend session CTA button", "English")__
       </button>
     </div>
   );
@@ -56,7 +56,7 @@ fs.writeFileSync(sampleCodePath, sampleCode, 'utf-8');
 
 try {
   const run2 = spawnSync(process.execPath, [
-    geminiCallJs,
+    agyCallJs,
     '--replace-in-file', sampleCodePath
   ], { encoding: 'utf-8', timeout: 30000 });
 
@@ -65,8 +65,8 @@ try {
   const updatedCode = fs.readFileSync(sampleCodePath, 'utf-8');
   console.log('Updated Code Result:\n------------------\n', updatedCode, '\n------------------');
 
-  if (!updatedCode.includes('__GEMINI__')) {
-    console.log('>>> [2] PASS: All placeholders successfully replaced with Gemini text!\n');
+  if (!updatedCode.includes('__AGY__') && !updatedCode.includes('__GEMINI__')) {
+    console.log('>>> [2] PASS: All placeholders successfully replaced with generated text!\n');
   } else {
     console.error('>>> [2] FAIL: Placeholders still remain in code.\n');
   }

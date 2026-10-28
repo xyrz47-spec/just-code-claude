@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 /**
- * gemini_call.js
- * CLI wrapper that invokes Gemini via 'agy' CLI for the just-code-claude skill.
+ * agy_call.js
+ * Unified text generation CLI for just-code-claude skill.
+ * 
+ * Supports two backends:
+ *  1. Antigravity CLI ('agy') - Pre-authenticated local agent CLI
+ *  2. Direct Google Gemini REST API - Uses GEMINI_API_KEY or GOOGLE_API_KEY
  * 
  * Capabilities:
- *  1. Single prompt (-p, --prompt)
- *  2. File-based prompt (-f, --file)
- *  3. Output to file (-o, --output)
- *  4. In-code string replacement (--replace-in-file <file>)
- *     Replaces __GEMINI__("prompt"[, "lang"]) with Gemini-generated text.
- *  5. JSON string dictionary (--json-strings <file>)
- *  6. Target language specification (--lang <language>)
- *  7. Model selection (-m, --model, default: gemini-3.8-flash-high)
+ *  - Single prompt (-p, --prompt)
+ *  - File-based prompt (-f, --file)
+ *  - Output to file (-o, --output)
+ *  - In-code string replacement (--replace-in-file <file>)
+ *    Replaces __AGY__("prompt"[, "lang"]) and __GEMINI__("prompt"[, "lang"])
+ *  - Batch UI localization (--json-strings <spec.json>)
+ *  - Target language control (--lang <language>)
+ *  - Backend selection (--backend <auto|agy|api>)
  */
 
 const { spawn } = require('child_process');
@@ -35,7 +39,9 @@ function parseArgs(args) {
     prompt: null,
     file: null,
     output: null,
-    model: 'gemini-3.8-flash-high',
+    model: null,
+    backend: 'auto', // 'auto', 'agy', 'api'
+    apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || null,
     replaceInFile: null,
     jsonStrings: null,
     lang: null,
@@ -57,6 +63,10 @@ function parseArgs(args) {
       options.model = args[++i];
     } else if (arg === '-l' || arg === '--lang') {
       options.lang = args[++i];
+    } else if (arg === '-b' || arg === '--backend') {
+      options.backend = args[++i].toLowerCase();
+    } else if (arg === '--api-key') {
+      options.apiKey = args[++i];
     } else if (arg === '--replace-in-file') {
       options.replaceInFile = args[++i];
     } else if (arg === '--json-strings') {
@@ -77,38 +87,48 @@ function parseArgs(args) {
 
 function printHelp() {
   console.log(`
-Usage: node gemini_call.js [options]
+Usage: node agy_call.js [options]
+
+Dual-Backend Execution:
+  1. Antigravity CLI (agy): Automatically detected if installed.
+  2. Direct Gemini API: Automatically used if GEMINI_API_KEY is present or agy is unavailable.
 
 Options:
-  -p, --prompt <text>          Direct prompt text to send to Gemini
+  -p, --prompt <text>          Direct prompt text to generate
   -f, --file <path>            Read prompt/context from a file
-  -o, --output <path>          Write Gemini's output directly to a file
-  -m, --model <name>           Gemini model (default: gemini-3.8-flash-high)
+  -o, --output <path>          Write generated output directly to a file
+  -b, --backend <mode>         Backend engine: 'auto' (default), 'agy', or 'api'
+  -m, --model <name>           Model name (default for agy: gemini-3.8-flash-high, for api: gemini-2.5-flash)
+  --api-key <key>              Google Gemini API key (or set GEMINI_API_KEY env var)
   -l, --lang <language>        Target output language (e.g. English, Korean, Japanese, Spanish)
   -s, --system <text>          System instructions prepended to prompt
-  --effort <level>             Reasoning effort (low, medium, high)
-  --replace-in-file <path>     Scan code file for __GEMINI__("...") placeholders
-                               and replace them in-place with Gemini text
+  --effort <level>             Reasoning effort for agy (low, medium, high)
+  --replace-in-file <path>     Scan code file for __AGY__("...") or __GEMINI__("...") placeholders
+                               and replace them in-place with generated copy
   --json-strings <path>        Generate copy for a JSON map of keys -> descriptions
   --raw                        Print raw text without extra formatting
   -h, --help                   Show this help message
 
 Examples:
-  # 1. Generate documentation
-  node gemini_call.js -p "Write an API overview in English" -o docs/API.md
+  # 1. Generate text deliverable via agy CLI
+  node agy_call.js -p "Write an API overview in English" -o docs/API.md
 
-  # 2. In-code string replacement (with global target language)
-  node gemini_call.js --replace-in-file src/components/Login.tsx --lang Korean
+  # 2. Generate text via Direct Gemini API
+  node agy_call.js -p "Write project README" -b api --api-key "AIza..." -o README.md
 
-  # 3. Batch UI strings
-  node gemini_call.js --json-strings ui_spec.json -o src/locales/en.json --lang English
+  # 3. In-code string replacement in component
+  node agy_call.js --replace-in-file src/components/Login.tsx --lang English
+
+  # 4. Batch UI strings / localization
+  node agy_call.js --json-strings ui_spec.json -o src/locales/ko.json --lang Korean
 `);
 }
 
-function runAgy(promptText, model, effort) {
+function runAgyCli(promptText, model, effort) {
   return new Promise((resolve, reject) => {
     const agyBin = findAgyExecutable();
-    const args = ['-p', promptText, '--model', model, '--dangerously-skip-permissions'];
+    const chosenModel = model || 'gemini-3.8-flash-high';
+    const args = ['-p', promptText, '--model', chosenModel, '--dangerously-skip-permissions'];
 
     if (effort) {
       args.push('--effort', effort);
@@ -132,7 +152,7 @@ function runAgy(promptText, model, effort) {
 
     proc.on('close', (code) => {
       if (code !== 0) {
-        return reject(new Error(`agy exited with code ${code}:\n${stderr || stdout}`));
+        return reject(new Error(`agy CLI exited with code ${code}:\n${stderr || stdout}`));
       }
       resolve(stdout.trim());
     });
@@ -143,6 +163,83 @@ function runAgy(promptText, model, effort) {
   });
 }
 
+async function runGeminiApi(promptText, apiKey, model) {
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not set. Please provide --api-key or set GEMINI_API_KEY in your environment.');
+  }
+
+  const chosenModel = model || 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const body = {
+    contents: [
+      {
+        parts: [
+          { text: promptText }
+        ]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.7
+    }
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API HTTP ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const candidate = data.candidates && data.candidates[0];
+  if (!candidate || !candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
+    throw new Error(`Gemini API returned empty response: ${JSON.stringify(data)}`);
+  }
+
+  return candidate.content.parts[0].text.trim();
+}
+
+async function executeGeneration(promptText, options) {
+  const backend = options.backend;
+
+  if (backend === 'api') {
+    return await runGeminiApi(promptText, options.apiKey, options.model);
+  }
+
+  if (backend === 'agy') {
+    return await runAgyCli(promptText, options.model, options.effort);
+  }
+
+  // Auto mode:
+  // 1. If agy executable exists and no explicit api key is prioritized, try agy
+  // 2. If agy fails or apiKey is provided, fallback to API
+  const agyBin = findAgyExecutable();
+  const hasAgy = agyBin === 'agy' || fs.existsSync(agyBin);
+
+  if (hasAgy) {
+    try {
+      return await runAgyCli(promptText, options.model, options.effort);
+    } catch (err) {
+      if (options.apiKey) {
+        console.warn(`[just-code-claude] agy CLI call failed, falling back to Direct Gemini API: ${err.message}`);
+        return await runGeminiApi(promptText, options.apiKey, options.model);
+      }
+      throw err;
+    }
+  } else if (options.apiKey) {
+    return await runGeminiApi(promptText, options.apiKey, options.model);
+  } else {
+    throw new Error("No execution backend available. Either install the 'agy' CLI or set GEMINI_API_KEY for Direct API access.");
+  }
+}
+
 function cleanCodeBlock(text) {
   const match = text.match(/^```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)\s*```$/);
   if (match) {
@@ -151,14 +248,14 @@ function cleanCodeBlock(text) {
   return text.trim();
 }
 
-async function handleReplaceInFile(filePath, model, effort, defaultLang) {
+async function handleReplaceInFile(filePath, options) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
 
   const content = fs.readFileSync(filePath, 'utf-8');
-  // Match __GEMINI__("prompt"[, "lang"]) or GEMINI_TEXT(...)
-  const regex = /(?:__GEMINI__|GEMINI_TEXT|GEMINI_STR|__GEMINI_TEXT__)\(\s*(["'])([\s\S]*?)\1(?:\s*,\s*(["'])([\s\S]*?)\3)?\s*\)(?:__)?/g;
+  // Match __AGY__("prompt"[, "lang"]) or __GEMINI__("prompt"[, "lang"]) or GEMINI_TEXT / AGY_TEXT
+  const regex = /(?:__AGY__|AGY_TEXT|__GEMINI__|GEMINI_TEXT|GEMINI_STR|__GEMINI_TEXT__)\(\s*(["'])([\s\S]*?)\1(?:\s*,\s*(["'])([\s\S]*?)\3)?\s*\)(?:__)?/g;
 
   const matches = [];
   let match;
@@ -173,17 +270,17 @@ async function handleReplaceInFile(filePath, model, effort, defaultLang) {
   }
 
   if (matches.length === 0) {
-    console.log(`[just-code-claude] No __GEMINI__ or GEMINI_TEXT placeholders found in ${filePath}`);
+    console.log(`[just-code-claude] No __AGY__ or __GEMINI__ placeholders found in ${filePath}`);
     return;
   }
 
-  console.log(`[just-code-claude] Found ${matches.length} string placeholder(s) in ${filePath}. Requesting Gemini via agy...`);
+  console.log(`[just-code-claude] Found ${matches.length} string placeholder(s) in ${filePath}. Requesting generation...`);
 
   const spec = {};
   matches.forEach((m, idx) => {
     spec[`item_${idx}`] = {
       description: m.description,
-      language: m.langOverride || defaultLang || 'infer from context or instructions',
+      language: m.langOverride || options.lang || 'infer from context or instructions',
     };
   });
 
@@ -199,7 +296,7 @@ Input specification:
 ${JSON.stringify(spec, null, 2)}
 `;
 
-  const response = await runAgy(prompt, model, effort);
+  const response = await executeGeneration(prompt, options);
   const cleanJsonStr = cleanCodeBlock(response);
   let parsed;
   try {
@@ -210,7 +307,7 @@ ${JSON.stringify(spec, null, 2)}
     if (firstBrace !== -1 && lastBrace !== -1) {
       parsed = JSON.parse(cleanJsonStr.substring(firstBrace, lastBrace + 1));
     } else {
-      throw new Error(`Failed to parse Gemini response as JSON: ${response}`);
+      throw new Error(`Failed to parse response as JSON: ${response}`);
     }
   }
 
@@ -227,13 +324,13 @@ ${JSON.stringify(spec, null, 2)}
   console.log(`[just-code-claude] Successfully replaced ${matches.length} placeholders in ${filePath}!`);
 }
 
-async function handleJsonStrings(specPath, outputPath, model, effort, defaultLang) {
+async function handleJsonStrings(specPath, outputPath, options) {
   if (!fs.existsSync(specPath)) {
     throw new Error(`Spec file not found: ${specPath}`);
   }
 
   const specContent = fs.readFileSync(specPath, 'utf-8');
-  const langDirective = defaultLang ? `Target language: ${defaultLang}` : 'Target language: As specified in keys or English by default.';
+  const langDirective = options.lang ? `Target language: ${options.lang}` : 'Target language: As specified in keys or English by default.';
 
   const prompt = `You are an expert technical writer and UI localization specialist.
 Below is a JSON specification of keys and their context/descriptions.
@@ -245,8 +342,8 @@ Input specification:
 ${specContent}
 `;
 
-  console.log(`[just-code-claude] Generating UI strings via Gemini (agy)...`);
-  const response = await runAgy(prompt, model, effort);
+  console.log(`[just-code-claude] Generating UI strings...`);
+  const response = await executeGeneration(prompt, options);
   const cleanJson = cleanCodeBlock(response);
 
   if (outputPath) {
@@ -271,12 +368,12 @@ async function main() {
 
   try {
     if (options.replaceInFile) {
-      await handleReplaceInFile(options.replaceInFile, options.model, options.effort, options.lang);
+      await handleReplaceInFile(options.replaceInFile, options);
       return;
     }
 
     if (options.jsonStrings) {
-      await handleJsonStrings(options.jsonStrings, options.output, options.model, options.effort, options.lang);
+      await handleJsonStrings(options.jsonStrings, options.output, options);
       return;
     }
 
@@ -302,7 +399,7 @@ async function main() {
       promptText = `[System Instructions: ${options.system}]\n\n${promptText}`;
     }
 
-    const output = await runAgy(promptText, options.model, options.effort);
+    const output = await executeGeneration(promptText, options);
 
     if (options.output) {
       const dir = path.dirname(options.output);
@@ -310,7 +407,7 @@ async function main() {
         fs.mkdirSync(dir, { recursive: true });
       }
       fs.writeFileSync(options.output, output, 'utf-8');
-      console.log(`[just-code-claude] Gemini output successfully written to: ${options.output}`);
+      console.log(`[just-code-claude] Output successfully written to: ${options.output}`);
     } else {
       if (options.raw) {
         process.stdout.write(output);
