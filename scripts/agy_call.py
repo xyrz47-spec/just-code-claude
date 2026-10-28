@@ -8,11 +8,16 @@ Supports two backends:
  2. Direct Google Gemini REST API - Uses GEMINI_API_KEY or GOOGLE_API_KEY
 
 Supported Models:
- - 3.8 flash: 'gemini-3.8-flash-high' (Default: Fast, agile, ideal for UI copy & components)
- - 4 argon:   'gemini-4-argon-high'   (Deep reasoning, complex architecture & release docs)
+ - 3.8 flash: 'gemini-3.8-flash' (Default: Fast, agile, ideal for UI copy, components, git commits)
+ - 4 argon:   'gemini-4-argon'   (Deep reasoning, complex architecture & release docs, PR specs)
 
 Reasoning Effort:
  - Configurable via -e, --effort <low|medium|high|xhigh|max> or GEMINI_EFFORT env
+
+Git & GitHub Integration:
+ - --commit-msg : Draft Conventional Commits message from staged diff
+ - --commit     : Draft Conventional Commits message and run git commit
+ - --pr-desc    : Draft comprehensive GitHub PR description in Markdown
 
 Zero external dependencies (Standard library only).
 """
@@ -142,13 +147,16 @@ def run_gemini_api(prompt_text: str, api_key: str, model: str = None, effort: st
 
 
 def execute_generation(prompt_text: str, args) -> str:
-    backend = args.backend
+    backend = getattr(args, "backend", "auto")
+    model = getattr(args, "model", None)
+    effort = getattr(args, "effort", None)
+    api_key = getattr(args, "api_key", None)
 
     if backend == "api":
-        return run_gemini_api(prompt_text, args.api_key, args.model, args.effort)
+        return run_gemini_api(prompt_text, api_key, model, effort)
 
     if backend == "agy":
-        return run_agy_cli(prompt_text, args.model, args.effort)
+        return run_agy_cli(prompt_text, model, effort)
 
     # Auto mode:
     agy_bin = find_agy_executable()
@@ -156,14 +164,14 @@ def execute_generation(prompt_text: str, args) -> str:
 
     if has_agy:
         try:
-            return run_agy_cli(prompt_text, args.model, args.effort)
+            return run_agy_cli(prompt_text, model, effort)
         except Exception as e:
-            if args.api_key:
+            if api_key:
                 print(f"[just-code-claude] agy CLI failed, falling back to Direct Gemini API: {e}", file=sys.stderr)
-                return run_gemini_api(prompt_text, args.api_key, args.model, args.effort)
+                return run_gemini_api(prompt_text, api_key, model, effort)
             raise e
-    elif args.api_key:
-        return run_gemini_api(prompt_text, args.api_key, args.model, args.effort)
+    elif api_key:
+        return run_gemini_api(prompt_text, api_key, model, effort)
     else:
         raise RuntimeError("No execution backend available. Either install the 'agy' CLI or set GEMINI_API_KEY for Direct API access.")
 
@@ -175,6 +183,142 @@ def clean_code_block(text: str) -> str:
     return text.strip()
 
 
+def get_git_diff() -> str:
+    try:
+        proc = subprocess.run(["git", "diff", "--staged"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        diff = proc.stdout.strip()
+        if not diff:
+            proc2 = subprocess.run(["git", "diff"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            diff = proc2.stdout.strip()
+            if diff:
+                print("[just-code-claude] Note: No staged changes found. Using unstaged diff.", file=sys.stderr)
+        return diff
+    except Exception as e:
+        raise RuntimeError(f"Failed to read git diff: {e}")
+
+
+def handle_git_commit(args, do_commit: bool = False):
+    diff = get_git_diff()
+    if not diff:
+        raise RuntimeError("No git changes detected to generate a commit message for.")
+
+    capped_diff = diff[:30000] + "\n\n[...diff truncated for size...]" if len(diff) > 30000 else diff
+
+    lang = getattr(args, "lang", None) or "English"
+    extra_context = f"\nAdditional Developer Context & Directives:\n{args.prompt}\n" if getattr(args, "prompt", None) else ""
+
+    prompt = f"""You are a Principal Software Engineer and Conventional Commits 1.0.0 expert.
+Analyze the following git diff and draft an exemplary, production-ready commit message.
+
+Target Language: {lang}
+{extra_context}
+Strict Structure:
+1. Header line: <type>(<scope>): <concise imperative summary under 50 characters, no trailing period>
+   - Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+2. Blank line.
+3. Detailed Body:
+   - Bullet points explaining WHY the change was necessary and WHAT engineering decisions were made.
+   - Mention architectural impact, refactored components, or new behaviors.
+4. Optional Footer:
+   - Breaking changes notice: "BREAKING CHANGE: <explanation>"
+   - Issue/PR references (e.g. "Closes #123").
+
+Format Requirements:
+- Return ONLY the commit message text.
+- Do NOT wrap in markdown code fences (```).
+- No conversational filler.
+
+Git Diff:
+{capped_diff}
+"""
+
+    model = getattr(args, "model", None) or "3.8 flash"
+    effort = getattr(args, "effort", None) or "medium"
+    print(f"[just-code-claude] Generating commit message with {model} (effort: {effort})...", file=sys.stderr)
+
+    response = execute_generation(prompt, args)
+    commit_msg = clean_code_block(response)
+
+    if do_commit:
+        print("\n--- Generated Commit Message ---")
+        print(commit_msg)
+        print("--------------------------------\n")
+
+        temp_msg_file = os.path.join(os.getcwd(), ".git_commit_msg.tmp")
+        with open(temp_msg_file, "w", encoding="utf-8") as f:
+            f.write(commit_msg)
+        try:
+            subprocess.run(["git", "commit", "-F", temp_msg_file], check=True)
+            print("[just-code-claude] Commit successfully created!")
+        finally:
+            if os.path.exists(temp_msg_file):
+                os.remove(temp_msg_file)
+    else:
+        if args.output:
+            out_dir = os.path.dirname(args.output)
+            if out_dir:
+                os.makedirs(out_dir, exist_ok=True)
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(commit_msg)
+            print(f"[just-code-claude] Commit message saved to: {args.output}")
+        else:
+            print(commit_msg)
+
+
+def handle_pr_description(args):
+    diff = get_git_diff()
+    if not diff:
+        raise RuntimeError("No git changes detected to generate a PR description for.")
+
+    capped_diff = diff[:35000] + "\n\n[...diff truncated for size...]" if len(diff) > 35000 else diff
+
+    lang = getattr(args, "lang", None) or "English"
+    extra_context = f"\nAdditional Context & Directives:\n{args.prompt}\n" if getattr(args, "prompt", None) else ""
+
+    prompt = f"""You are a Principal Software Engineer and Technical Lead.
+Analyze the following git diff and author a comprehensive, professional Pull Request description in GitHub-flavored Markdown.
+
+Target Language: {lang}
+{extra_context}
+Structure:
+# Summary of Changes
+<High-level summary of what problem this PR solves>
+
+## Key Architectural & Code Modifications
+<Bullet list of major changes categorized by module/component>
+
+## Verification & Testing
+<How this was tested or instructions for manual QA>
+
+## Breaking Changes / Migrations
+<None or detailed migration steps>
+
+Format Requirements:
+- Return ONLY the markdown content.
+- Do NOT wrap in outer code blocks (```).
+
+Git Diff:
+{capped_diff}
+"""
+
+    model = getattr(args, "model", None) or "4 argon"
+    effort = getattr(args, "effort", None) or "high"
+    print(f"[just-code-claude] Generating PR description with {model} (effort: {effort})...", file=sys.stderr)
+
+    response = execute_generation(prompt, args)
+    pr_content = clean_code_block(response)
+
+    if args.output:
+        out_dir = os.path.dirname(args.output)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        with open(args.output, "w", encoding="utf-8") as f:
+            f.write(pr_content)
+        print(f"[just-code-claude] PR description saved to: {args.output}")
+    else:
+        print(pr_content)
+
+
 def handle_replace_in_file(file_path: str, args):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -182,7 +326,6 @@ def handle_replace_in_file(file_path: str, args):
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Pattern: __AGY__("prompt"[, "lang"]) or __GEMINI__("prompt"[, "lang"])
     pattern = re.compile(r'(?:__AGY__|AGY_TEXT|__GEMINI__|GEMINI_TEXT|GEMINI_STR|__GEMINI_TEXT__)\(\s*(["\'])([\s\S]*?)\1(?:\s*,\s*(["\'])([\s\S]*?)\3)?\s*\)(?:__)?')
     matches = list(pattern.finditer(content))
 
@@ -277,20 +420,47 @@ Input specification:
 
 def main():
     parser = argparse.ArgumentParser(description="Unified text generation CLI for just-code-claude skill.")
-    parser.add_argument("-p", "--prompt", help="Direct prompt text to generate")
+    parser.add_argument("-p", "--prompt", help="Direct prompt text or developer context")
     parser.add_argument("-f", "--file", help="Read prompt/context from a file")
     parser.add_argument("-o", "--output", help="Write output directly to a file")
     parser.add_argument("-b", "--backend", choices=["auto", "agy", "api"], default="auto", help="Backend engine: 'auto' (default), 'agy', or 'api'")
-    parser.add_argument("-m", "--model", help="Choose model: '3.8 flash' (gemini-3.8-flash-high) or '4 argon' (gemini-4-argon-high)")
+    parser.add_argument("-m", "--model", help="Choose model: '3.8 flash' (gemini-3.8-flash) or '4 argon' (gemini-4-argon)")
     parser.add_argument("-e", "--effort", choices=["low", "medium", "high", "xhigh", "max"], help="Reasoning effort level")
     parser.add_argument("--api-key", default=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"), help="Google Gemini API key")
     parser.add_argument("-l", "--lang", help="Target output language (e.g. English, Korean, Japanese, Spanish)")
     parser.add_argument("-s", "--system", help="System prompt instructions")
     parser.add_argument("--replace-in-file", help="In-place replacement of __AGY__ or __GEMINI__ in code file")
     parser.add_argument("--json-strings", help="Generate copy for a JSON map of keys -> descriptions")
+    parser.add_argument("--commit-msg", action="store_true", help="Analyze git diff and generate Conventional Commit message")
+    parser.add_argument("--commit", action="store_true", help="Analyze git diff, generate commit message and execute git commit")
+    parser.add_argument("--pr-desc", action="store_true", help="Analyze git diff and generate GitHub PR description in Markdown")
     parser.add_argument("--raw", action="store_true", help="Print raw text without extra formatting")
 
     args = parser.parse_args()
+
+    if args.commit:
+        try:
+            handle_git_commit(args, do_commit=True)
+            sys.exit(0)
+        except Exception as e:
+            print(f"[just-code-claude] Git commit failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    if args.commit_msg:
+        try:
+            handle_git_commit(args, do_commit=False)
+            sys.exit(0)
+        except Exception as e:
+            print(f"[just-code-claude] Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    if args.pr_desc:
+        try:
+            handle_pr_description(args)
+            sys.exit(0)
+        except Exception as e:
+            print(f"[just-code-claude] Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
     if args.replace_in_file:
         handle_replace_in_file(args.replace_in_file, args)

@@ -4,7 +4,41 @@ These templates are used by Claude when preparing prompts for Google Gemini (`3.
 
 ---
 
-## 1. In-Code UI Strings & Microcopy (`3.8 flash` | Effort: `low` to `medium`)
+## 1. Git Conventional Commit Messages (`3.8 flash` | Effort: `medium`)
+
+Use with `--commit-msg` or `--commit`:
+
+```bash
+# Direct one-command commit:
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: {FEATURE_OR_BUGFIX_MODULE}
+Intent: {WHY_THE_CHANGE_WAS_MADE_AND_USER_IMPACT}
+Technical Scope: {AFFECTED_FILES_OR_TYPES}
+Breaking Changes: {NONE_OR_EXPLANATION}" --lang {TARGET_LANGUAGE}
+```
+
+### Example:
+```bash
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Added two-factor TOTP authentication dialog and backup codes generator.
+Intent: Enforce security compliance for enterprise accounts.
+Technical Scope: src/auth/mfa.tsx, api/auth/totp.ts" --lang English
+```
+
+---
+
+## 2. GitHub Pull Request Descriptions (`4 argon` | Effort: `high`)
+
+Use with `--pr-desc`:
+
+```bash
+node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Pull Request for {FEATURE_NAME}.
+Problem Solved: {BACKGROUND_PROBLEM_OR_ISSUE_REFERENCE}.
+Architecture Highlights: {STRUCTURAL_OR_DATA_CONTRACT_CHANGES}.
+Testing Performed: {UNIT_TESTS_E2E_MANUAL_QA}." -o PULL_REQUEST.md --lang {TARGET_LANGUAGE}
+```
+
+---
+
+## 3. In-Code UI Strings & Microcopy (`3.8 flash` | Effort: `low` to `medium`)
 
 Use inside `__AGY__("...", "<lang>")` placeholders in React/Vue/Svelte/Mobile components:
 
@@ -26,7 +60,7 @@ Target Language: {TARGET_LANGUAGE}
 
 ---
 
-## 2. Technical Documentation & Architectural Specifications (`4 argon` | Effort: `high` to `max`)
+## 4. Technical Documentation & Architectural Specifications (`4 argon` | Effort: `high` to `max`)
 
 For comprehensive guides, API references, READMEs, and technical whitepapers:
 
@@ -50,20 +84,10 @@ Target Language: {TARGET_LANGUAGE}." -o docs/{OUTPUT_FILE}.md
 
 ---
 
-## 3. Empathetic Error Messages & Alerts (`3.8 flash` | Effort: `medium`)
+## 5. Empathetic Error Messages & Alerts (`3.8 flash` | Effort: `medium`)
 
 For exception handlers, HTTP 4xx/5xx responses, and toast banners:
 
-```text
-Context: {ERROR_SCENARIO_AND_TRIGGER} (e.g., Cloud storage upload quota exceeded)
-Intent: {EXPLAIN_ROOT_CAUSE_WITHOUT_JARGON_AND_PROVIDE_RECOVERY_STEPS}
-Tone: Empathetic, helpful, constructive, zero finger-pointing
-Constraints: Maximum 2 sentences, under 120 characters total
-Model: 3.8 flash
-Target Language: {TARGET_LANGUAGE}
-```
-
-### Example:
 ```typescript
 throw new PaymentRequiredError(
   __AGY__("Context: SaaS file storage upload rejection | Intent: Inform user workspace has reached the 50GB plan limit; guide admin to upgrade tier or delete unneeded assets | Tone: Polite, transparent, constructive | Constraints: 2 short sentences under 110 chars | Model: 3.8 flash | Target Language: English")__
@@ -72,46 +96,10 @@ throw new PaymentRequiredError(
 
 ---
 
-## 4. Conventional Git Commit Messages (`3.8 flash` | Effort: `medium`)
-
-For authoring standardized commit messages from staged diffs:
-
-```bash
-git diff --staged > .git_diff.tmp
-node scripts/agy_call.js -m "3.8 flash" -e medium -f .git_diff.tmp -p "Context: Staged git changes for this pull request.
-Intent: Author a high-quality Conventional Commits message (feat, fix, refactor, docs, test, chore).
-Structure:
-- Line 1: Type and concise imperative subject (under 50 characters, no trailing period).
-- Blank line.
-- Body: 2-4 bullet points explaining 'Why this change was made' and 'Architectural implications'.
-Constraints: Strictly follow Conventional Commits 1.0.0. No fluff.
-Target Language: English." -o .commit_msg.tmp
-```
-
----
-
-## 5. Batch UI Localization (i18n) (`3.8 flash` or `4 argon` | Effort: `medium`)
+## 6. Batch UI Localization (i18n) (`3.8 flash` or `4 argon` | Effort: `medium`)
 
 For localization dictionaries (`ui_spec.json`):
 
-```json
-{
-  "auth.mfa.heading": {
-    "context": "Two-factor authentication challenge modal",
-    "intent": "Instruct user to enter 6-digit TOTP authenticator code",
-    "tone": "Direct, secure, reassuring",
-    "constraints": "Under 45 characters, Title Case"
-  },
-  "auth.mfa.resend_prompt": {
-    "context": "Bottom helper link for SMS/authenticator retry",
-    "intent": "Guide user on what to do if code was not received",
-    "tone": "Helpful, non-intrusive",
-    "constraints": "Under 50 characters"
-  }
-}
-```
-
-Execute:
 ```bash
 node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -e medium -o src/locales/ko.json --lang Korean
 ```

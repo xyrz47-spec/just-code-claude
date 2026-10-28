@@ -20,7 +20,7 @@
 [![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude writes code. Gemini writes text."**  
-> Une compétence open source pour Claude Code : Claude gère l'architecture et la logique du code, tandis qu'il délègue la documentation, les README, les messages de commit et les textes d'interface utilisateur à **Google Gemini** (`3.8 flash` ou `4 argon`, avec contrôle de l'effort de raisonnement) via l'**API REST Google Gemini** ou la **CLI Antigravity (`agy`)**.
+> Une compétence open source pour Claude Code : Claude gère l'architecture et la logique du code, tandis qu'il délègue la documentation, les README, **les messages de commit Git, les descriptions de PR** et les textes d'interface utilisateur à **Google Gemini** (`3.8 flash` ou `4 argon`, avec contrôle de l'effort de raisonnement) via l'**API REST Google Gemini** ou la **CLI Antigravity (`agy`)**.
 
 ---
 
@@ -28,34 +28,29 @@
 
 | Modèle | Alias CLI | Cas d'Utilisation Principal | Effort Recommandé |
 | :--- | :--- | :--- | :--- |
-| **`3.8 flash`** *(Par défaut)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | UI copy ultra-rapide, boutons, modales, erreurs et toasts | `low` ou `medium` |
-| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | Raisonnement approfondi, architecture système, guides API | `high` ou `max` |
-
-### Niveaux d'Effort (`-e, --effort`):
-- `low`: Microcopie, boutons, libellés uniques (réponse instantanée).
-- `medium` *(Par défaut)*: Modales, formulaires, messages de commit.
-- `high`: Documentation technique approfondie, vues d'ensemble de l'architecture.
-- `xhigh` / `max`: Guides complexes, spécifications de migration, livres blancs.
+| **`3.8 flash`** *(Par défaut)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | UI copy ultra-rapide, boutons, modales, messages de commit | `low` ou `medium` |
+| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | Raisonnement approfondi, architecture système, descriptions de PR | `high` ou `max` |
 
 ---
 
-## 🎯 Directives Détaillées de Contexte
+## 🐙 Intégration Git & GitHub (Commits & PR)
 
-Claude fournit des instructions riches selon 5 dimensions (Contexte, Intention, Ton, Contraintes, Langue cible) :
-
-```tsx
-<button onClick={onConfirm}>
-  __AGY__("Context: Modal de paiement d'abonnement | Intent: Inciter à souscrire à l'abonnement annuel avec 20% de remise | Tone: Clair et motivant | Constraints: 3 mots, Title Case | Model: 3.8 flash", "French")__
-</button>
+### 1. Commit automatique en une seule commande (`--commit`)
+Analyse le diff indexé (staged), rédige un message selon Conventional Commits et exécute directement `git commit` :
+```bash
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Implémentation du modal MFA et de l'actualisation de token" -l French
 ```
 
----
-
-## 📦 Guide d'Installation
-
+### 2. Prévisualisation du message de commit (`--commit-msg`)
+Génère un message sans exécuter le commit immédiatement :
 ```bash
-# Installation globale pour Claude Code (Recommandé)
-npx skills add xyrz47-spec/just-code-claude -g -a claude-code
+node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Correction d'une race condition sur WebSocket heartbeat" -l French
+```
+
+### 3. Description complète de GitHub PR (`--pr-desc`)
+Exploite **`4 argon`** pour analyser l'ensemble des modifications et produire une description Markdown structurée pour votre PR :
+```bash
+node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Migration du state management de Redux vers Zustand" -o PULL_REQUEST.md -l French
 ```
 
 ---
@@ -68,6 +63,9 @@ node scripts/agy_call.js --replace-in-file src/components/Login.tsx -m "3.8 flas
 
 # Génération de documentation technique avec 4 argon
 node scripts/agy_call.js -m "4 argon" -e high -p "Rédige le guide d'architecture des microservices" -o docs/ARCH.md -l French
+
+# Créer un commit automatiquement
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -l French
 ```
 
 ---

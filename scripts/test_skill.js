@@ -78,6 +78,26 @@ try {
   console.error('>>> [2] FAIL:', e.message);
 }
 
+console.log('=== [3] Testing Conventional Commit Message Generation (--commit-msg) ===');
+try {
+  const run3 = spawnSync(process.execPath, [
+    agyCallJs,
+    '--commit-msg',
+    '-m', '3.8 flash',
+    '-e', 'medium',
+    '-p', 'Context: Test commit generation verification'
+  ], { encoding: 'utf-8', timeout: 30000 });
+
+  console.log(run3.stdout || run3.stderr);
+  if (run3.status === 0 && (run3.stdout.includes('feat') || run3.stdout.includes('fix') || run3.stdout.includes('refactor') || run3.stdout.length > 20)) {
+    console.log('>>> [3] PASS: Conventional Commit message generation works!\n');
+  } else {
+    console.warn('>>> [3] Warning: Return code', run3.status);
+  }
+} catch (e) {
+  console.error('>>> [3] FAIL:', e.message);
+}
+
 // Clean up
 try {
   fs.rmSync(tmpDir, { recursive: true, force: true });

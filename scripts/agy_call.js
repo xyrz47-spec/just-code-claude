@@ -8,14 +8,14 @@
  *  2. Direct Google Gemini REST API - Uses GEMINI_API_KEY or GOOGLE_API_KEY
  * 
  * Supported Models:
- *  - 3.8 flash: 'gemini-3.8-flash-high' (Default: Fast, agile, ideal for UI copy & components)
- *  - 4 argon:   'gemini-4-argon-high'   (Deep reasoning, complex architecture & release docs)
+ *  - 3.8 flash: 'gemini-3.8-flash' (Default: Fast, agile, ideal for UI copy, components, commits)
+ *  - 4 argon:   'gemini-4-argon'   (Deep reasoning, complex architecture & release docs, PR specs)
  * 
  * Reasoning Effort:
  *  - Configurable via -e, --effort <low|medium|high|xhigh|max> or GEMINI_EFFORT env
  */
 
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -67,6 +67,9 @@ function parseArgs(args) {
     apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || null,
     replaceInFile: null,
     jsonStrings: null,
+    commitMsg: false,
+    commit: false,
+    prDesc: false,
     lang: null,
     system: null,
     help: false,
@@ -95,6 +98,12 @@ function parseArgs(args) {
       options.replaceInFile = args[++i];
     } else if (arg === '--json-strings') {
       options.jsonStrings = args[++i];
+    } else if (arg === '--commit-msg') {
+      options.commitMsg = true;
+    } else if (arg === '--commit') {
+      options.commit = true;
+    } else if (arg === '--pr-desc') {
+      options.prDesc = true;
     } else if (arg === '-s' || arg === '--system') {
       options.system = args[++i];
     } else if (arg === '--raw') {
@@ -112,19 +121,26 @@ function printHelp() {
 Usage: node agy_call.js [options]
 
 Supported Models:
-  1. 3.8 flash: 'gemini-3.8-flash-high' (Default) - Ultra-fast, ideal for UI copy, components, toasts
-  2. 4 argon:   'gemini-4-argon-high'             - Maximum reasoning depth, architecture docs, guides
+  1. 3.8 flash: 'gemini-3.8-flash' (Default) - Ultra-fast, ideal for UI copy, components, git commits
+  2. 4 argon:   'gemini-4-argon'             - Maximum reasoning depth, architecture docs, PR specs
+
+Reasoning Effort:
+  -e, --effort <low|medium|high|xhigh|max>   - Set reasoning budget (Default: medium)
 
 Execution Backends:
   1. Antigravity CLI (agy): Automatically detected if installed on host.
   2. Direct Gemini API: Used if GEMINI_API_KEY is present or agy is unavailable.
 
+Git & GitHub Integration:
+  --commit-msg                 Analyze staged git diff and generate a Conventional Commit message
+  --commit                     Generate commit message from staged git diff and run 'git commit'
+  --pr-desc                    Analyze staged git diff and generate a GitHub PR description in Markdown
+
 Options:
-  -p, --prompt <text>          Direct prompt text to generate
+  -p, --prompt <text>          Direct prompt text or developer context
   -f, --file <path>            Read prompt/context from a file
   -o, --output <path>          Write generated output directly to a file
-  -m, --model <name>           Choose model: '3.8 flash' (or gemini-3.8-flash-high)
-                                         or '4 argon' (or gemini-4-argon-high)
+  -m, --model <name>           Choose model: '3.8 flash' or '4 argon'
   -e, --effort <level>         Set reasoning effort: low, medium, high, xhigh, max
   -b, --backend <mode>         Backend engine: 'auto' (default), 'agy', or 'api'
   --api-key <key>              Google Gemini API key (or set GEMINI_API_KEY env var)
@@ -137,14 +153,17 @@ Options:
   -h, --help                   Show this help message
 
 Examples:
-  # 1. Generate UI copy with 3.8 flash (fast)
-  node agy_call.js -m "3.8 flash" -p "Context: Sign-up CTA button" -l English
+  # 1. Generate commit message from staged diff
+  node agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Added MFA login modal" --lang Korean
 
-  # 2. Generate architectural doc with 4 argon & high effort
-  node agy_call.js -m "4 argon" -e high -p "Write an API architecture doc" -o docs/ARCH.md
+  # 2. Generate commit message and execute git commit immediately
+  node agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Fix OAuth token refresh bug"
 
-  # 3. Replace in-code placeholders with rich instructions
-  node agy_call.js --replace-in-file src/components/Login.tsx --lang English
+  # 3. Generate comprehensive PR description with 4 argon & high effort
+  node agy_call.js --pr-desc -m "4 argon" -e high -o PULL_REQUEST.md
+
+  # 4. In-code string replacement with rich directives
+  node agy_call.js --replace-in-file src/components/Login.tsx -m "3.8 flash" -e medium --lang English
 `);
 }
 
@@ -259,8 +278,6 @@ async function executeGeneration(promptText, options) {
   }
 
   // Auto mode:
-  // 1. If agy executable exists and no explicit api key is prioritized, try agy
-  // 2. If agy fails or apiKey is provided, fallback to API
   const agyBin = findAgyExecutable();
   const hasAgy = agyBin === 'agy' || fs.existsSync(agyBin);
 
@@ -289,13 +306,151 @@ function cleanCodeBlock(text) {
   return text.trim();
 }
 
+function getGitDiff() {
+  try {
+    let diff = execSync('git diff --staged', { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+    if (!diff.trim()) {
+      diff = execSync('git diff', { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+      if (diff.trim()) {
+        console.warn('[just-code-claude] Note: No staged changes found. Using unstaged diff.');
+      }
+    }
+    return diff.trim();
+  } catch (err) {
+    throw new Error(`Failed to read git diff: ${err.message}`);
+  }
+}
+
+async function handleGitCommit(options, doCommit) {
+  const diff = getGitDiff();
+  if (!diff) {
+    throw new Error('No git changes detected to generate a commit message for.');
+  }
+
+  const cappedDiff = diff.length > 30000 ? diff.substring(0, 30000) + '\n\n[...diff truncated for size...]' : diff;
+
+  const prompt = `You are a Principal Software Engineer and Conventional Commits 1.0.0 expert.
+Analyze the following git diff and draft an exemplary, production-grade commit message.
+
+Target Language: ${options.lang || 'English'}
+${options.prompt ? `\nAdditional Developer Context & Directives:\n${options.prompt}\n` : ''}
+
+Strict Structure:
+1. Header line: <type>(<scope>): <concise imperative summary under 50 characters, no trailing period>
+   - Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+2. Blank line.
+3. Detailed Body:
+   - Bullet points explaining WHY the change was necessary and WHAT engineering decisions were made.
+   - Mention architectural impact, refactored components, or new behaviors.
+4. Optional Footer:
+   - Breaking changes notice: "BREAKING CHANGE: <explanation>"
+   - Issue/PR references (e.g. "Closes #123").
+
+Format Requirements:
+- Return ONLY the commit message text.
+- Do NOT wrap in markdown code fences (\`\`\`).
+- No conversational filler.
+
+Git Diff:
+${cappedDiff}
+`;
+
+  const chosenModel = options.model || '3.8 flash';
+  const chosenEffort = options.effort || 'medium';
+  console.log(`[just-code-claude] Generating commit message with ${chosenModel} (effort: ${chosenEffort})...`);
+
+  const response = await executeGeneration(prompt, { ...options, model: chosenModel, effort: chosenEffort });
+  const commitMsg = cleanCodeBlock(response);
+
+  if (doCommit) {
+    console.log('\n--- Generated Commit Message ---');
+    console.log(commitMsg);
+    console.log('--------------------------------\n');
+
+    const tempMsgFile = path.join(process.cwd(), '.git_commit_msg.tmp');
+    fs.writeFileSync(tempMsgFile, commitMsg, 'utf-8');
+    try {
+      execSync(`git commit -F "${tempMsgFile}"`, { stdio: 'inherit' });
+      console.log('[just-code-claude] Commit successfully created!');
+    } finally {
+      if (fs.existsSync(tempMsgFile)) {
+        fs.unlinkSync(tempMsgFile);
+      }
+    }
+  } else {
+    if (options.output) {
+      const outDir = path.dirname(options.output);
+      if (outDir && !fs.existsSync(outDir)) {
+        fs.mkdirSync(outDir, { recursive: true });
+      }
+      fs.writeFileSync(options.output, commitMsg, 'utf-8');
+      console.log(`[just-code-claude] Commit message saved to: ${options.output}`);
+    } else {
+      console.log(commitMsg);
+    }
+  }
+}
+
+async function handlePrDescription(options) {
+  const diff = getGitDiff();
+  if (!diff) {
+    throw new Error('No git changes detected to generate a PR description for.');
+  }
+
+  const cappedDiff = diff.length > 35000 ? diff.substring(0, 35000) + '\n\n[...diff truncated for size...]' : diff;
+
+  const prompt = `You are a Principal Software Engineer and Technical Lead.
+Analyze the following git diff and author a comprehensive, professional Pull Request description in GitHub-flavored Markdown.
+
+Target Language: ${options.lang || 'English'}
+${options.prompt ? `\nAdditional Context & Directives:\n${options.prompt}\n` : ''}
+
+Structure:
+# Summary of Changes
+<High-level summary of what problem this PR solves>
+
+## Key Architectural & Code Modifications
+<Bullet list of major changes categorized by module/component>
+
+## Verification & Testing
+<How this was tested or instructions for manual QA>
+
+## Breaking Changes / Migrations
+<None or detailed migration steps>
+
+Format Requirements:
+- Return ONLY the markdown content.
+- Do NOT wrap in outer code blocks (\`\`\`).
+
+Git Diff:
+${cappedDiff}
+`;
+
+  const chosenModel = options.model || '4 argon';
+  const chosenEffort = options.effort || 'high';
+  console.log(`[just-code-claude] Generating PR description with ${chosenModel} (effort: ${chosenEffort})...`);
+
+  const response = await executeGeneration(prompt, { ...options, model: chosenModel, effort: chosenEffort });
+  const prContent = cleanCodeBlock(response);
+
+  if (options.output) {
+    const outDir = path.dirname(options.output);
+    if (outDir && !fs.existsSync(outDir)) {
+      fs.mkdirSync(outDir, { recursive: true });
+    }
+    fs.writeFileSync(options.output, prContent, 'utf-8');
+    console.log(`[just-code-claude] PR description saved to: ${options.output}`);
+  } else {
+    console.log(prContent);
+  }
+}
+
 async function handleReplaceInFile(filePath, options) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
 
   const content = fs.readFileSync(filePath, 'utf-8');
-  // Match __AGY__("prompt"[, "lang"]) or __GEMINI__("prompt"[, "lang"]) or GEMINI_TEXT / AGY_TEXT
   const regex = /(?:__AGY__|AGY_TEXT|__GEMINI__|GEMINI_TEXT|GEMINI_STR|__GEMINI_TEXT__)\(\s*(["'])([\s\S]*?)\1(?:\s*,\s*(["'])([\s\S]*?)\3)?\s*\)(?:__)?/g;
 
   const matches = [];
@@ -355,7 +510,6 @@ ${JSON.stringify(spec, null, 2)}
   }
 
   let updatedContent = content;
-  // Replace each occurrence
   matches.forEach((m, idx) => {
     const key = `item_${idx}`;
     const generatedText = parsed[key] || m.description;
@@ -408,6 +562,36 @@ async function main() {
   if (options.help) {
     printHelp();
     process.exit(0);
+  }
+
+  if (options.commit) {
+    try {
+      await handleGitCommit(options, true);
+      process.exit(0);
+    } catch (err) {
+      console.error(`[just-code-claude] Git commit failed: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  if (options.commitMsg) {
+    try {
+      await handleGitCommit(options, false);
+      process.exit(0);
+    } catch (err) {
+      console.error(`[just-code-claude] Error: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  if (options.prDesc) {
+    try {
+      await handlePrDescription(options);
+      process.exit(0);
+    } catch (err) {
+      console.error(`[just-code-claude] Error: ${err.message}`);
+      process.exit(1);
+    }
   }
 
   if (options.replaceInFile) {
@@ -484,6 +668,8 @@ module.exports = {
   executeGeneration,
   runAgyCli,
   runGeminiApi,
+  handleGitCommit,
+  handlePrDescription,
   handleReplaceInFile,
   handleJsonStrings,
   normalizeModel,

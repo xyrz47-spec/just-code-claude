@@ -20,7 +20,7 @@
 [![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude writes code. Gemini writes text."**  
-> An open-source **Claude Code skill** designed to separate engineering tasks: Claude focuses on software architecture and code logic, while delegating natural language deliverables (documentation, READMEs, commit messages, and in-code string literals inside quotes) to **Google Gemini** (`3.8 flash` or `4 argon` with customizable reasoning effort) via the **Google Gemini REST API** or the **Antigravity CLI (`agy`)**.
+> An open-source **Claude Code skill** designed to separate engineering tasks: Claude focuses on software architecture and code logic, while delegating natural language deliverables (documentation, READMEs, Git commit messages, PR descriptions, and in-code string literals inside quotes) to **Google Gemini** (`3.8 flash` or `4 argon` with customizable reasoning effort) via the **Google Gemini REST API** or the **Antigravity CLI (`agy`)**.
 
 ---
 
@@ -29,6 +29,7 @@
 - [Motivation & Design Philosophy](#-motivation--design-philosophy)
 - [Supported Models & Reasoning Effort](#-supported-models--reasoning-effort)
 - [Detailed Context Directives (Prompting Standard)](#-detailed-context-directives-prompting-standard)
+- [Git & GitHub Integration (Commit & PR)](#-git--github-integration-commit--pr)
 - [How It Works](#-how-it-works)
 - [Prerequisites](#-prerequisites)
 - [Installation Guide](#-installation-guide)
@@ -42,7 +43,7 @@
   - [2. In-Code String Replacement](#2-workflow-in-code-string-replacement)
   - [3. Documentation & Markdown Generation](#3-workflow-generating-documentation--markdown)
   - [4. Batch UI Strings & i18n Localization](#4-workflow-batch-i18n-localization)
-  - [5. Conventional Git Commit Messages](#5-workflow-git-commit--pr-messages)
+  - [5. Conventional Git Commit Messages & PR Descriptions](#5-workflow-git-commit-messages--pr-descriptions)
 - [CLI Reference](#-cli-reference)
 - [Verification & Testing](#-verification--testing)
 - [Repository Structure](#-repository-structure)
@@ -54,7 +55,7 @@
 
 In modern AI-assisted engineering workflows, different language models exhibit distinct strengths:
 - **Claude** excels at complex software architecture, AST manipulation, TypeScript type systems, and algorithmic reasoning.
-- **Google Gemini** offers strong multilingual fluency, natural user-facing phrasing, and fast text generation.
+- **Google Gemini** offers strong multilingual fluency, natural user-facing phrasing, fast text generation, and deep context comprehension for commit logs and technical documentation.
 
 `just-code-claude` creates an automated collaboration workflow between both models:
 
@@ -77,7 +78,7 @@ In modern AI-assisted engineering workflows, different language models exhibit d
                    ▼                                     ▼
       Function components, hooks,            UI button labels, toasts,
       data mutations, state machines,        error alerts, docs, READMEs,
-      and CSS layout                         and commit messages
+      and CSS layout                         commits, and PR descriptions
                    │                                     │
                    └──────────────────┬──────────────────┘
                                       ▼
@@ -94,13 +95,13 @@ The skill is built around two primary Google Gemini models with configurable rea
 
 | Model | CLI Alias | Primary Use Case | Recommended Effort |
 | :--- | :--- | :--- | :--- |
-| **`3.8 flash`** *(Default)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | Ultra-fast UI copy, button labels, modal dialogs, form errors, toast banners | `low` or `medium` |
-| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | High-reasoning architectural docs, comprehensive API guides, technical RFCs | `high` or `max` |
+| **`3.8 flash`** *(Default)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | Ultra-fast UI copy, button labels, modal dialogs, form errors, toast banners, Git commit messages | `low` or `medium` |
+| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | High-reasoning architectural docs, comprehensive API guides, technical RFCs, GitHub PR descriptions | `high` or `max` |
 
 ### Reasoning Effort (`-e, --effort`):
 - `low`: Microcopy, buttons, individual string labels (instantaneous response).
 - `medium` *(Default)*: Modals, form validations, toast notifications, commit messages.
-- `high`: Deep technical documentation, architecture overviews, complete READMEs.
+- `high`: Deep technical documentation, architecture overviews, GitHub PR descriptions, complete READMEs.
 - `xhigh` / `max`: Comprehensive migration specs, security whitepapers, complex multi-page guides.
 
 ---
@@ -110,18 +111,34 @@ The skill is built around two primary Google Gemini models with configurable rea
 To ensure the highest quality copy, Claude is instructed to provide **rich, multi-dimensional context directives** rather than brief or vague placeholders:
 
 ### The 5 Dimensions Claude Specifies:
-1. **Context**: Specific component, modal, or form screen state.
-2. **Intent**: Exact user action, business goal, or reassurance needed.
+1. **Context**: Specific component, modal, git diff scope, or module.
+2. **Intent**: Exact user action, business goal, architectural motivation, or reassurance needed.
 3. **Tone**: Desired brand voice (e.g., empathetic, solemn, energetic, professional).
-4. **Constraints**: Character limits, sentence counts, Title Case vs sentence case.
+4. **Constraints**: Character limits, Conventional Commits formatting, Title Case vs sentence case.
 5. **Target Language**: Explicit destination language (English, Korean, Japanese, Spanish, etc.).
 
-### Example:
-```tsx
-// Claude inserts rich context directives:
-<button onClick={onConfirm}>
-  __AGY__("Context: Subscription payment modal primary CTA | Intent: Prompt user to authorize annual subscription with 20% discount | Tone: Motivating, clear | Constraints: 3 words, Title Case | Model: 3.8 flash", "English")__
-</button>
+---
+
+## 🐙 Git & GitHub Integration (Commit & PR)
+
+`just-code-claude` includes first-class support for Git and GitHub workflows:
+
+### 1. One-Command Conventional Commit (`--commit`)
+Analyzes your staged changes, incorporates developer context directives, calls Gemini, and executes `git commit`:
+```bash
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Added two-factor authentication dialog and recovery code backup flow" --lang English
+```
+
+### 2. Inspect Commit Message First (`--commit-msg`)
+Generates an exemplary Conventional Commits message (type, scope, subject <= 50 chars, detailed technical body) without committing immediately:
+```bash
+node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Bug fix for race condition in WebSocket heartbeat" --lang Korean
+```
+
+### 3. Comprehensive GitHub PR Descriptions (`--pr-desc`)
+Uses **`4 argon`** with high reasoning effort to analyze the entire diff and draft a structured GitHub PR in Markdown:
+```bash
+node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: State management migration from Redux to Zustand" -o PULL_REQUEST.md
 ```
 
 ---
@@ -214,7 +231,7 @@ In Claude Code, invoke the skill:
 ```
 Or via a prompt:
 ```text
-Activate just-code-claude mode. You build the code architecture and logic, and delegate all copy and documentation to Gemini.
+Activate just-code-claude mode. You build the code architecture and logic, and delegate all copy, documentation, commits, and PRs to Gemini.
 ```
 
 ---
@@ -250,7 +267,6 @@ Claude runs the bundled CLI tool:
 ```bash
 node scripts/agy_call.js --replace-in-file src/components/SessionExpiryBanner.tsx -m "3.8 flash" -e medium
 ```
-*(Or in Python: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx -m "3.8 flash" -e medium`)*
 
 #### Step C: Final Production Code
 The placeholders are replaced in-place with generated copy:
@@ -311,20 +327,20 @@ node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -o src/local
 
 ---
 
-### 5. Workflow: Git Commit & PR Messages
+### 5. Workflow: Git Commit Messages & PR Descriptions
 
-When preparing commits or pull requests:
+When committing code or opening a pull request:
 
 ```bash
-# 1. Capture staged diff
-git diff --staged > .git_diff.tmp
+# Option 1: Commit directly with Conventional Commits
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Added MFA login modal and token refresh logic" --lang English
 
-# 2. Call Gemini to author the Conventional Commit message
-node scripts/agy_call.js -m "3.8 flash" -e medium -f .git_diff.tmp -p "Context: Staged git diff. Intent: Draft a Conventional Commits message with a concise title under 50 chars and a bulleted technical body. Target language: English." -o .commit_msg.tmp
-
-# 3. Commit using the generated text
+# Option 2: Generate commit message to file
+node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -o .commit_msg.tmp
 git commit -F .commit_msg.tmp
-rm .git_diff.tmp .commit_msg.tmp
+
+# Option 3: Generate GitHub PR Description
+node scripts/agy_call.js --pr-desc -m "4 argon" -e high -o PULL_REQUEST.md
 ```
 
 ---
@@ -336,18 +352,23 @@ Usage: node scripts/agy_call.js [options]
    or: python scripts/agy_call.py [options]
 
 Supported Models:
-  - '3.8 flash' (gemini-3.8-flash) [Default]  : Ultra-fast, ideal for UI copy, components, toasts
-  - '4 argon'   (gemini-4-argon)              : Maximum reasoning depth, architecture docs, guides
+  - '3.8 flash' (gemini-3.8-flash) [Default]  : Ultra-fast, ideal for UI copy, components, commits
+  - '4 argon'   (gemini-4-argon)              : Maximum reasoning depth, architecture docs, PR specs
 
 Reasoning Effort:
-  -e, --effort <low|medium|high|xhigh|max>    : Configure reasoning budget / effort
+  -e, --effort <low|medium|high|xhigh|max>    : Configure reasoning budget / effort (Default: medium)
+
+Git & GitHub Integration:
+  --commit-msg                                : Analyze git diff and generate Conventional Commit message
+  --commit                                    : Analyze git diff, generate message and execute git commit
+  --pr-desc                                   : Analyze git diff and generate GitHub PR description in Markdown
 
 Execution Backends:
   1. Direct Gemini API: Used when GEMINI_API_KEY is present or with -b api.
   2. Antigravity CLI (agy): Automatically detected if installed on the host.
 
 Options:
-  -p, --prompt <text>          Direct prompt text to generate
+  -p, --prompt <text>          Direct prompt text or developer context directives
   -f, --file <path>            Read prompt/context from a file
   -o, --output <path>          Write generated output directly to a file
   -m, --model <name>           Choose model: '3.8 flash' or '4 argon'
@@ -400,7 +421,7 @@ just-code-claude/
 │   ├── before_code.tsx      # Code sample featuring rich __AGY__ placeholders
 │   └── ui_spec.json         # Localization specification example
 └── templates/
-    └── prompt_templates.md  # Detailed prompt templates for UX copy and documentation
+    └── prompt_templates.md  # Detailed prompt templates for UX copy, docs, and git commits
 ```
 
 ---

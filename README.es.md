@@ -20,42 +20,37 @@
 [![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude writes code. Gemini writes text."**  
-> Una habilidad de código abierto para Claude Code: Claude se enfoca en la arquitectura y la lógica de programación, mientras delega la documentación técnica, READMEs, mensajes de commit y textos de UI a **Google Gemini** (`3.8 flash` o `4 argon`, con esfuerzo de razonamiento configurable) mediante la **API REST de Gemini** o la **CLI Antigravity (`agy`)**.
+> Una habilidad de código abierto para Claude Code: Claude se enfoca en la arquitectura y la lógica de programación, mientras delega la documentación técnica, READMEs, **mensajes de commit en Git, descripciones de PR** y textos de UI a **Google Gemini** (`3.8 flash` o `4 argon`, con esfuerzo de razonamiento configurable) mediante la **API REST de Gemini** o la **CLI Antigravity (`agy`)**.
 
 ---
 
-## 🤖 Modelos Compatibles y Esfuerzo de Razonamiento (Reasoning Effort)
+## 🤖 Modelos Compatibles y Esfuerzo de Razonamiento
 
 | Modelo | Alias CLI | Caso de Uso Principal | Esfuerzo Recomendado |
 | :--- | :--- | :--- | :--- |
-| **`3.8 flash`** *(Por defecto)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | Copias de UI ultrarrápidas, botones, modales, alertas y toasts | `low` o `medium` |
-| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | Razonamiento profundo, documentos de arquitectura y especificaciones | `high` o `max` |
-
-### Niveles de Esfuerzo (`-e, --effort`):
-- `low`: Microcopia, botones, etiquetas individuales (respuesta instantánea).
-- `medium` *(Por defecto)*: Modales, validaciones de formularios, mensajes de commit.
-- `high`: Documentación técnica profunda, resúmenes arquitectónicos.
-- `xhigh` / `max`: Guías complejas, especificaciones de migración, informes de seguridad.
+| **`3.8 flash`** *(Por defecto)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | Copias de UI ultrarrápidas, botones, modales, mensajes de commit | `low` o `medium` |
+| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | Razonamiento profundo, documentos de arquitectura, descripciones de PR | `high` o `max` |
 
 ---
 
-## 🎯 Directivas Detalladas de Contexto
+## 🐙 Integración con Git y GitHub (Commits y PRs)
 
-Claude debe proporcionar instrucciones ricas en 5 dimensiones (Contexto, Intención, Tono, Restricciones, Idioma de destino):
-
-```tsx
-<button onClick={onConfirm}>
-  __AGY__("Context: Modal de pago de suscripción | Intent: Promover suscripción anual con 20% de descuento | Tone: Claro y motivador | Constraints: 3 palabras, Title Case | Model: 3.8 flash", "Spanish")__
-</button>
+### 1. Commit automático en un solo comando (`--commit`)
+Analiza los cambios en el área de preparación (staged), redacta un mensaje según Conventional Commits y ejecuta `git commit`:
+```bash
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Implementación de modal de autenticación MFA y flujo de actualización de tokens" -l Spanish
 ```
 
----
-
-## 📦 Instalación
-
+### 2. Vista previa del mensaje de commit (`--commit-msg`)
+Genera un mensaje de commit estructurado sin realizar el commit de inmediato:
 ```bash
-# Instalación global para Claude Code (Recomendado)
-npx skills add xyrz47-spec/just-code-claude -g -a claude-code
+node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Corrección de condición de carrera en WebSocket heartbeat" -l Spanish
+```
+
+### 3. Descripción completa de GitHub PR (`--pr-desc`)
+Utiliza **`4 argon`** con alto razonamiento para redactar una descripción completa de Pull Request en Markdown:
+```bash
+node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Migración de estado frontend de Redux a Zustand" -o PULL_REQUEST.md -l Spanish
 ```
 
 ---
@@ -68,6 +63,9 @@ node scripts/agy_call.js --replace-in-file src/components/Login.tsx -m "3.8 flas
 
 # Generar documentación técnica con 4 argon
 node scripts/agy_call.js -m "4 argon" -e high -p "Escribe la guía de arquitectura de microservicios" -o docs/ARCH.md -l Spanish
+
+# Crear commit automáticamente
+node scripts/agy_call.js --commit -m "3.8 flash" -e medium -l Spanish
 ```
 
 ---
