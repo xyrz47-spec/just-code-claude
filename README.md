@@ -42,6 +42,7 @@
 - [Configuration & Execution Backends](#-configuration--execution-backends)
   - [Backend 1: Direct Google Gemini REST API (Universal)](#backend-1-direct-google-gemini-rest-api-universal)
   - [Backend 2: Antigravity CLI (`agy`)](#backend-2-antigravity-cli-agy)
+- [Resilience & Token Optimization Architecture](#️-resilience--token-optimization-architecture)
 - [Usage & Workflows](#-usage--workflows)
   - [1. Activating the Skill in Claude Code](#1-activating-the-skill-in-claude-code)
   - [2. In-Code String Replacement](#2-workflow-in-code-string-replacement)
@@ -341,6 +342,26 @@ For users working in an Antigravity environment:
 - If `agy` is found on your `PATH` or standard installation path, it is automatically used.
 - Uses your local Antigravity CLI authentication.
 - Seamlessly passes `--model gemini-3.8-flash` or `--model gemini-4-argon` along with `--effort`.
+
+---
+
+## 🛡️ Resilience & Token Optimization Architecture
+
+Built-in engineering middleware designed to eliminate token waste and handle transient runtime failures:
+
+1. **Noise-Filtering Middleware (Token Conservation)**:
+   - Automatically excludes noisy lockfiles (`package-lock.json`, `Cargo.lock`, `pnpm-lock.yaml`), source maps, minified bundles, binaries, and images from Git diffs, preventing tens of thousands of wasted tokens.
+   - Truncates oversized single-file diffs (>400 lines) with a concise summary marker to safeguard LLM context window limits.
+   - Strips merge commit noise (`--no-merges`) and automated bot commits (`dependabot`, `renovate`) from release logs.
+
+2. **Atomic Rollback Guarantee**:
+   - If an unexpected error, rate limit, or malformed generation occurs during `--replace-in-file`, the original source code on disk is **guaranteed to be 100% restored**, preventing any partial corruption.
+
+3. **Exponential Backoff Retry with Jitter**:
+   - Transient network timeouts, socket drops, and HTTP 429 (Rate Limit / Quota) responses automatically trigger up to 3 retries with randomized backoff delays.
+
+4. **3-Tier Robust JSON Recovery Engine**:
+   - Salvages responses containing markdown fences, trailing commas, or unescaped control characters using a tiered fallback parser with regex key-value extraction.
 
 ---
 

@@ -42,6 +42,7 @@
 - [환경 설정 및 실행 백엔드](#-환경-설정-및-실행-백엔드)
   - [백엔드 1: Google Gemini REST API (전 세계 범용)](#백엔드-1-google-gemini-rest-api-전-세계-범용)
   - [백엔드 2: Antigravity CLI (`agy`)](#백엔드-2-antigravity-cli-agy)
+- [안정성 및 토큰 최적화 아키텍처](#️-안정성-및-토큰-최적화-아키텍처-resilience--token-optimization)
 - [사용법 및 주요 워크플로우](#-사용법-및-주요-워크플로우)
   - [1. Claude Code에서 스킬 활성화](#1-claude-code에서-스킬-활성화)
   - [2. 코드 내부 문자열 자동 생성 및 치환](#2-워크플로우-코드-내부-문자열-치환)
@@ -338,6 +339,26 @@ bash install.sh
 Antigravity 환경에서 작업 중인 사용자를 위한 로컬 백엔드입니다:
 - 시스템 `PATH` 또는 기본 설치 경로에서 `agy`가 감지되면 자동으로 우선 활용됩니다.
 - `--model gemini-3.8-flash` 또는 `--model gemini-4-argon`과 `--effort` 옵션을 매끄럽게 전달합니다.
+
+---
+
+## 🛡️ 안정성 및 토큰 최적화 아키텍처 (Resilience & Token Optimization)
+
+AI 모델 간 협업 시 발생할 수 있는 토큰 낭비와 네트워크 불안정을 해결하기 위해 내장된 엔지니어링 미들웨어입니다:
+
+1. **토큰 절감 필터링 미들웨어 (Noise-Filtering Middleware)**:
+   - Git diff 추출 시 `package-lock.json`, `Cargo.lock`, `pnpm-lock.yaml`, 번들/압축 파일(`.min.js`, `.map`), 바이너리, 이미지 에셋을 자동 배제하여 **수만 개의 무의미한 diff 토큰 낭비를 원천 차단**합니다.
+   - 단일 파일의 변경점이 400줄을 초과하는 거대 diff는 요약 마커로 안전하게 변환하여 컨텍스트 윈도우 한도를 보호합니다.
+   - Git 로그에서 머지 커밋(`--no-merges`) 및 자동 의존성 봇(`dependabot`, `renovate`) 로그를 자동 정제합니다.
+
+2. **원자적 롤백 보장 (Atomic Rollback Safeguard)**:
+   - `--replace-in-file` 수행 중 네트워크 순단, API 호출 실패, JSON 파싱 불일치 등 예외가 발생할 경우, **디스크의 소스코드를 100% 원본 상태로 즉시 롤백**하여 소스코드 손상이나 부분 오염을 방지합니다.
+
+3. **지수 백오프 자동 재시도 (Exponential Backoff with Jitter)**:
+   - 일시적인 네트워크 끊김, 타임아웃, 또는 HTTP 429(Rate Limit/할당량 초과) 발생 시, 지수 백오프(1초, 2초, 4초...)와 랜덤 지터를 적용하여 최대 3회 자동 재시도합니다.
+
+4. **3단계 유연한 JSON 복구 엔진 (3-Tier Robust Parser)**:
+   - LLM이 반환한 응답에 마크다운 코드펜스, 후행 쉼표(Trailing Commas), 비표준 제어 문자가 포함되어 있더라도 정규식 키-값 추출 폴백을 통해 안전하게 파싱을 복구합니다.
 
 ---
 

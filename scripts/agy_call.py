@@ -27,12 +27,43 @@ Zero external dependencies (Standard library only).
 import argparse
 import json
 import os
+import random
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+
+def with_retry(operation, op_name: str = "API Call", max_retries: int = 3, initial_delay: float = 1.0):
+    attempt = 0
+    while True:
+        try:
+            return operation()
+        except Exception as e:
+            attempt += 1
+            err_msg = str(e)
+            is_rate_limit = "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg
+            is_transient = (
+                is_rate_limit
+                or "500" in err_msg
+                or "502" in err_msg
+                or "503" in err_msg
+                or "504" in err_msg
+                or "timed out" in err_msg.lower()
+                or "timeout" in err_msg.lower()
+                or "connection reset" in err_msg.lower()
+            )
+
+            if attempt <= max_retries and is_transient:
+                jitter = random.uniform(0.1, 0.5)
+                delay = initial_delay * (2 ** (attempt - 1)) + jitter
+                print(f"[just-code-claude] {op_name} hit transient issue ({err_msg[:70]}...). Retrying in {delay:.1f}s (attempt {attempt}/{max_retries})...", file=sys.stderr)
+                time.sleep(delay)
+            else:
+                raise e
 
 
 def normalize_model(model: str = None) -> str:
@@ -132,20 +163,25 @@ def run_gemini_api(prompt_text: str, api_key: str, model: str = None, effort: st
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
 
-    try:
-        with urllib.request.urlopen(req) as resp:
-            resp_body = resp.read().decode("utf-8")
-            data = json.loads(resp_body)
-            candidates = data.get("candidates", [])
-            if not candidates or "content" not in candidates[0]:
-                raise ValueError(f"Gemini API returned unexpected response: {resp_body}")
-            parts = candidates[0]["content"].get("parts", [])
-            if not parts or "text" not in parts[0]:
-                raise ValueError(f"No text part found in Gemini API response: {resp_body}")
-            return parts[0]["text"].strip()
-    except urllib.error.HTTPError as e:
-        err_content = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Gemini API HTTP {e.code}: {err_content}")
+    def _do_request():
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                resp_body = resp.read().decode("utf-8")
+                data = json.loads(resp_body)
+                candidates = data.get("candidates", [])
+                if not candidates or "content" not in candidates[0]:
+                    raise ValueError(f"Gemini API returned unexpected response: {resp_body}")
+                parts = candidates[0]["content"].get("parts", [])
+                if not parts or "text" not in parts[0]:
+                    raise ValueError(f"No text part found in Gemini API response: {resp_body}")
+                return parts[0]["text"].strip()
+        except urllib.error.HTTPError as e:
+            err_content = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Gemini API HTTP {e.code}: {err_content}")
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"Gemini API Network Error: {e.reason}")
+
+    return with_retry(_do_request, "Gemini REST API")
 
 
 def execute_generation(prompt_text: str, args) -> str:
@@ -185,16 +221,81 @@ def clean_code_block(text: str) -> str:
     return text.strip()
 
 
+NOISE_FILTER_PATHSPECS = [
+    ":(exclude)*package-lock.json",
+    ":(exclude)*pnpm-lock.yaml",
+    ":(exclude)*yarn.lock",
+    ":(exclude)*bun.lockb",
+    ":(exclude)*bun.lock",
+    ":(exclude)*Cargo.lock",
+    ":(exclude)*go.sum",
+    ":(exclude)*poetry.lock",
+    ":(exclude)*Pipfile.lock",
+    ":(exclude)*composer.lock",
+    ":(exclude)*.min.js",
+    ":(exclude)*.min.css",
+    ":(exclude)*.map",
+    ":(exclude)dist/*",
+    ":(exclude)build/*",
+    ":(exclude).next/*",
+    ":(exclude).nuxt/*",
+    ":(exclude)out/*",
+    ":(exclude)vendor/*",
+    ":(exclude)*.png",
+    ":(exclude)*.jpg",
+    ":(exclude)*.jpeg",
+    ":(exclude)*.gif",
+    ":(exclude)*.webp",
+    ":(exclude)*.ico",
+    ":(exclude)*.svg",
+    ":(exclude)*.wasm",
+    ":(exclude)*.pdf",
+    ":(exclude)*.zip",
+    ":(exclude)*.tar.gz",
+    ":(exclude)*.tgz",
+]
+
+
+def filter_diff_noise(raw_diff: str) -> str:
+    if not raw_diff:
+        return ""
+    chunks = re.split(r"^diff --git ", raw_diff, flags=re.MULTILINE)
+    preserved = []
+
+    for chunk in chunks:
+        if not chunk.strip():
+            continue
+        lines = chunk.split("\n")
+        header = lines[0] if lines else ""
+
+        # Limit single file diff chunk if exceeding 400 lines
+        if len(lines) > 400:
+            preserved.append(f"diff --git {header}\n[...diff truncated: {len(lines)} lines modified in this file to conserve token budget...]\n")
+        else:
+            preserved.append("diff --git " + chunk)
+
+    return "\n".join(preserved).strip()
+
+
 def get_git_diff() -> str:
+    cmd_base = ["git", "diff", "--staged", "--", "."] + NOISE_FILTER_PATHSPECS
     try:
-        proc = subprocess.run(["git", "diff", "--staged"], capture_output=True, text=True, encoding="utf-8", errors="replace")
-        diff = proc.stdout.strip()
+        proc = subprocess.run(cmd_base, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        diff = proc.stdout.strip() if proc.returncode == 0 else ""
         if not diff:
-            proc2 = subprocess.run(["git", "diff"], capture_output=True, text=True, encoding="utf-8", errors="replace")
-            diff = proc2.stdout.strip()
+            proc_raw = subprocess.run(["git", "diff", "--staged"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            diff = proc_raw.stdout.strip()
+
+        if not diff:
+            cmd_unstaged = ["git", "diff", "--", "."] + NOISE_FILTER_PATHSPECS
+            proc2 = subprocess.run(cmd_unstaged, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            diff = proc2.stdout.strip() if proc2.returncode == 0 else ""
+            if not diff:
+                proc2_raw = subprocess.run(["git", "diff"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+                diff = proc2_raw.stdout.strip()
             if diff:
-                print("[just-code-claude] Note: No staged changes found. Using unstaged diff.", file=sys.stderr)
-        return diff
+                print("[just-code-claude] Note: No staged changes found. Using filtered unstaged diff.", file=sys.stderr)
+        return filter_diff_noise(diff)
     except Exception as e:
         raise RuntimeError(f"Failed to read git diff: {e}")
 
@@ -211,30 +312,42 @@ def get_release_context() -> dict:
     log_range = f"{last_tag}..HEAD" if last_tag else "-n 50"
     commits = ""
     try:
-        proc = subprocess.run(["git", "log", log_range, "--oneline"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(["git", "log", log_range, "--no-merges", "--oneline"], capture_output=True, text=True, encoding="utf-8", errors="replace")
         commits = proc.stdout.strip() if proc.returncode == 0 else ""
     except Exception:
         pass
 
     if not commits:
         try:
-            proc = subprocess.run(["git", "log", "-n", "30", "--oneline"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            proc = subprocess.run(["git", "log", "-n", "30", "--no-merges", "--oneline"], capture_output=True, text=True, encoding="utf-8", errors="replace")
             commits = proc.stdout.strip()
         except Exception:
             commits = "No commits found."
 
+    # Filter out automated dependency bots
+    cleaned_commits = "\n".join([
+        c for c in commits.split("\n")
+        if not re.search(r"\b(dependabot|renovate|snyk|greenkeeper)\b", c, re.IGNORECASE)
+    ]) if commits else ""
+
     stat_range = f"{last_tag}..HEAD" if last_tag else "HEAD~10..HEAD"
     stats = ""
     try:
-        proc = subprocess.run(["git", "diff", stat_range, "--stat"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        cmd_stats = ["git", "diff", stat_range, "--stat", "--", "."] + NOISE_FILTER_PATHSPECS
+        proc = subprocess.run(cmd_stats, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if proc.returncode == 0:
             stats = proc.stdout.strip()
     except Exception:
-        pass
+        try:
+            proc = subprocess.run(["git", "diff", stat_range, "--stat"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            if proc.returncode == 0:
+                stats = proc.stdout.strip()
+        except Exception:
+            pass
 
     return {
         "last_tag": last_tag or "(Initial Release / No previous tag)",
-        "commits": commits or "No commits found.",
+        "commits": cleaned_commits or "No commits found.",
         "stats": stats or ""
     }
 
@@ -444,15 +557,49 @@ Format Requirements:
         print("\n" + release_notes)
 
 
+def robust_parse_json(raw_text: str) -> dict:
+    clean = clean_code_block(raw_text)
+
+    # Strategy 1: Direct json.loads
+    try:
+        return json.loads(clean)
+    except Exception:
+        pass
+
+    # Strategy 2: Bracket substring with trailing-comma and control char cleanup
+    first_b = clean.find("{")
+    last_b = clean.rfind("}")
+    if first_b != -1 and last_b != -1:
+        sub_str = clean[first_b:last_b + 1]
+        sub_str = re.sub(r",\s*([}\]])", r"\1", sub_str)
+        sub_str = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", sub_str)
+        try:
+            return json.loads(sub_str)
+        except Exception:
+            pass
+
+    # Strategy 3: Regex fallback key-value recovery
+    recovered = {}
+    for kv in re.finditer(r'"(item_\d+)"\s*:\s*"((?:\\.|[^"\\])*)"', clean):
+        val = kv.group(2).replace('\\"', '"').replace('\\\\', '\\')
+        recovered[kv.group(1)] = val
+
+    if recovered:
+        print(f"[just-code-claude] Note: Recovered {len(recovered)} items via regex fallback parser.", file=sys.stderr)
+        return recovered
+
+    raise ValueError(f"Failed to parse response as JSON:\n{raw_text}")
+
+
 def handle_replace_in_file(file_path: str, args):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
 
     with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
+        original_content = f.read()
 
     pattern = re.compile(r'(?:__AGY__|AGY_TEXT|__GEMINI__|GEMINI_TEXT|GEMINI_STR|__GEMINI_TEXT__)\(\s*(["\'])([\s\S]*?)\1(?:\s*,\s*(["\'])([\s\S]*?)\3)?\s*\)(?:__)?')
-    matches = list(pattern.finditer(content))
+    matches = list(pattern.finditer(original_content))
 
     if not matches:
         print(f"[just-code-claude] No __AGY__ or __GEMINI__ placeholders found in {file_path}")
@@ -481,32 +628,34 @@ Input specification:
 {json.dumps(spec, ensure_ascii=False, indent=2)}
 """
 
-    response = execute_generation(prompt, args)
-    clean_json = clean_code_block(response)
-
     try:
-        parsed = json.loads(clean_json)
-    except Exception:
-        first_b = clean_json.find("{")
-        last_b = clean_json.rfind("}")
-        if first_b != -1 and last_b != -1:
-            parsed = json.loads(clean_json[first_b:last_b + 1])
-        else:
-            raise ValueError(f"Failed to parse response as JSON: {response}")
+        response = execute_generation(prompt, args)
+        parsed = robust_parse_json(response)
 
-    updated_content = content
-    for i, m in enumerate(matches):
-        key = f"item_{i}"
-        quote = m.group(1)
-        gen_text = parsed.get(key, m.group(2))
-        escaped_text = gen_text.replace("\\", "\\\\").replace(quote, f"\\{quote}")
-        replacement = f"{quote}{escaped_text}{quote}"
-        updated_content = updated_content.replace(m.group(0), replacement, 1)
+        updated_content = original_content
+        replaced_count = 0
+        for i, m in enumerate(matches):
+            key = f"item_{i}"
+            if key in parsed:
+                quote = m.group(1)
+                gen_text = parsed[key]
+                escaped_text = gen_text.replace("\\", "\\\\").replace(quote, f"\\{quote}")
+                replacement = f"{quote}{escaped_text}{quote}"
+                updated_content = updated_content.replace(m.group(0), replacement, 1)
+                replaced_count += 1
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(updated_content)
+        if replaced_count == 0:
+            raise RuntimeError("No placeholder matches could be mapped to generated items.")
 
-    print(f"[just-code-claude] Successfully replaced {len(matches)} placeholders in {file_path}!")
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(updated_content)
+
+        print(f"[just-code-claude] Successfully replaced {replaced_count} placeholder(s) in {file_path}!")
+    except Exception as e:
+        # Atomic Rollback safeguard: preserve original content on disk
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(original_content)
+        raise RuntimeError(f"[Atomic Rollback] Replacement aborted to protect file integrity: {e}")
 
 
 def handle_json_strings(spec_path: str, output_path: str, args):

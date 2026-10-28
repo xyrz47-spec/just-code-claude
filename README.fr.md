@@ -112,6 +112,26 @@ just-code-claude --release v1.2.0 -m "4 argon" -e high -l French
 
 ---
 
+## 🛡️ Architecture de Résilience et Optimisation des Tokens
+
+Middleware d'ingénierie intégré pour éliminer le gaspillage de tokens et gérer les pannes d'exécution transitoires :
+
+1. **Middleware de Filtrage de Bruit (Économie de Tokens)**:
+   - Exclut automatiquement les lockfiles (`package-lock.json`, `Cargo.lock`, `pnpm-lock.yaml`), source maps, bundles minifiés (`.min.js`), binaires et images des diffs Git, évitant ainsi le gaspillage de dizaines de milliers de tokens.
+   - Tronque les diffs de fichiers uniques volumineux (>400 lignes) avec un marqueur synthétique pour préserver la fenêtre de contexte du modèle.
+   - Filtre les commits de fusion (`--no-merges`) et les bots automatisés (`dependabot`, `renovate`) des historiques Git.
+
+2. **Garantie de Rollback Atomique**:
+   - En cas d'erreur réseau, de limite de quota ou d'échec de parsing durant `--replace-in-file`, le code source original sur disque est **restauré à 100% de façon atomique**, éliminant tout risque d'altération partielle.
+
+3. **Tentatives avec Backoff Exponentiel et Jitter**:
+   - Face aux déconnexions réseau transitoires, pertes de socket ou erreurs HTTP 429 (Rate Limit), exécute automatiquement jusqu'à 3 tentatives avec délais exponentiels aléatoires.
+
+4. **Moteur Robuste de Récupération JSON à 3 Niveaux**:
+   - Répare les réponses contenant des blocs de code markdown, virgules superflues ou caractères de contrôle grâce à un analyseur de secours par expressions régulières.
+
+---
+
 ## 🛠 Référence CLI
 
 ```bash

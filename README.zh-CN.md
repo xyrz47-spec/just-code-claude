@@ -113,6 +113,26 @@ just-code-claude --release v1.2.0 -m "4 argon" -e high -p "Context: 正式稳定
 
 ---
 
+## 🛡️ 弹性架构与 Token 过滤优化 (Resilience & Token Optimization)
+
+内置轻量级工程中间件，消除模型协作间的上下文浪费，并保障极端运行时的容错与安全：
+
+1. **Token 噪音过滤中间件 (Noise-Filtering Middleware)**:
+   - 在提取 Git diff 时自动排除 `package-lock.json`、`Cargo.lock`、`pnpm-lock.yaml` 等锁文件、压缩打包产物（`.min.js`、`.map`）、二进制及图片，**杜绝数万 Token 的无意义上下文浪费**。
+   - 单文件 diff 超过 400 行时自动转换为摘要截断标记，防止上下文窗口爆仓。
+   - Git 提交历史自动过滤 Merge 节点（`--no-merges`）以及自动化依赖机器人（`dependabot`、`renovate`）日志。
+
+2. **原子化安全回滚机制 (Atomic Rollback Safeguard)**:
+   - 执行 `--replace-in-file` 期间，如遇网络中断、API 调用受限或 JSON 解析异常，**磁盘源文件将 100% 立即回滚至初始状态**，绝不残留脏代码或半修改状态。
+
+3. **带随机抖动的指数退避重试 (Exponential Backoff with Jitter)**:
+   - 面对瞬时网络超时、连接断开及 HTTP 429（Rate Limit / Quota）错误，自动启用最多 3 次指数退避重试（1s, 2s, 4s...）并附加抖动延时。
+
+4. **三级容错 JSON 解析引擎 (3-Tier Robust Parser)**:
+   - 即便模型返回带有 Markdown 代码块、尾随逗号或特殊控制字符的非标准 JSON，亦可通过多级后备正则键值提取器精准还原。
+
+---
+
 ## 🛠 CLI 命令行参考
 
 ```bash

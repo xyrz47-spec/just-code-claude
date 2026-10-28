@@ -215,6 +215,41 @@ function runAgyCli(promptText, model, effort) {
   });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetry(operation, opName = 'API Call', maxRetries = 3, initialDelay = 1000) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await operation();
+    } catch (err) {
+      attempt++;
+      const msg = err.message || '';
+      const isRateLimit = msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED');
+      const isTransient = isRateLimit ||
+        msg.includes('500') ||
+        msg.includes('502') ||
+        msg.includes('503') ||
+        msg.includes('504') ||
+        msg.includes('ETIMEDOUT') ||
+        msg.includes('ECONNRESET') ||
+        msg.includes('fetch failed') ||
+        msg.includes('network');
+
+      if (attempt <= maxRetries && isTransient) {
+        const jitter = Math.random() * 500;
+        const delay = initialDelay * Math.pow(2, attempt - 1) + jitter;
+        console.warn(`[just-code-claude] ${opName} hit transient issue (${msg.substring(0, 70)}...). Retrying in ${Math.round(delay)}ms (attempt ${attempt}/${maxRetries})...`);
+        await sleep(delay);
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 async function runGeminiApi(promptText, apiKey, model, effort) {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not set. Please provide --api-key or set GEMINI_API_KEY in your environment.');
@@ -250,26 +285,28 @@ async function runGeminiApi(promptText, apiKey, model, effort) {
     };
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
+  return await withRetry(async () => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API HTTP ${response.status}: ${errorText}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API HTTP ${response.status}: ${errorText}`);
+    }
 
-  const data = await response.json();
-  const candidate = data.candidates && data.candidates[0];
-  if (!candidate || !candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
-    throw new Error(`Gemini API returned empty response: ${JSON.stringify(data)}`);
-  }
+    const data = await response.json();
+    const candidate = data.candidates && data.candidates[0];
+    if (!candidate || !candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
+      throw new Error(`Gemini API returned empty response: ${JSON.stringify(data)}`);
+    }
 
-  return candidate.content.parts[0].text.trim();
+    return candidate.content.parts[0].text.trim();
+  }, 'Gemini REST API');
 }
 
 async function executeGeneration(promptText, options) {
@@ -314,16 +351,83 @@ function cleanCodeBlock(text) {
   return text.trim();
 }
 
+const NOISE_FILTER_PATHSPECS = [
+  ':(exclude)*package-lock.json',
+  ':(exclude)*pnpm-lock.yaml',
+  ':(exclude)*yarn.lock',
+  ':(exclude)*bun.lockb',
+  ':(exclude)*bun.lock',
+  ':(exclude)*Cargo.lock',
+  ':(exclude)*go.sum',
+  ':(exclude)*poetry.lock',
+  ':(exclude)*Pipfile.lock',
+  ':(exclude)*composer.lock',
+  ':(exclude)*.min.js',
+  ':(exclude)*.min.css',
+  ':(exclude)*.map',
+  ':(exclude)dist/*',
+  ':(exclude)build/*',
+  ':(exclude).next/*',
+  ':(exclude).nuxt/*',
+  ':(exclude)out/*',
+  ':(exclude)vendor/*',
+  ':(exclude)*.png',
+  ':(exclude)*.jpg',
+  ':(exclude)*.jpeg',
+  ':(exclude)*.gif',
+  ':(exclude)*.webp',
+  ':(exclude)*.ico',
+  ':(exclude)*.svg',
+  ':(exclude)*.wasm',
+  ':(exclude)*.pdf',
+  ':(exclude)*.zip',
+  ':(exclude)*.tar.gz',
+  ':(exclude)*.tgz'
+];
+
+function filterDiffNoise(rawDiff) {
+  if (!rawDiff) return '';
+  const chunks = rawDiff.split(/^diff --git /m);
+  const preservedChunks = [];
+
+  for (const chunk of chunks) {
+    if (!chunk.trim()) continue;
+    const lines = chunk.split('\n');
+    const header = lines[0] || '';
+
+    // File-level noise filter: truncate files with massive auto-generated diffs (>400 lines)
+    if (lines.length > 400) {
+      preservedChunks.push(`diff --git ${header}\n[...diff truncated: ${lines.length} lines modified in this file to conserve token budget...]\n`);
+    } else {
+      preservedChunks.push('diff --git ' + chunk);
+    }
+  }
+
+  return preservedChunks.join('\n').trim();
+}
+
 function getGitDiff() {
+  const excludeArgs = NOISE_FILTER_PATHSPECS.map(p => `"${p}"`).join(' ');
   try {
-    let diff = execSync('git diff --staged', { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-    if (!diff.trim()) {
-      diff = execSync('git diff', { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-      if (diff.trim()) {
-        console.warn('[just-code-claude] Note: No staged changes found. Using unstaged diff.');
+    let diff = '';
+    try {
+      diff = execSync(`git diff --staged -- . ${excludeArgs}`, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }).trim();
+    } catch (e) {
+      diff = execSync('git diff --staged', { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }).trim();
+    }
+
+    if (!diff) {
+      try {
+        diff = execSync(`git diff -- . ${excludeArgs}`, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }).trim();
+      } catch (e) {
+        diff = execSync('git diff', { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }).trim();
+      }
+      if (diff) {
+        console.warn('[just-code-claude] Note: No staged changes found. Using filtered unstaged diff.');
       }
     }
-    return diff.trim();
+
+    return filterDiffNoise(diff);
   } catch (err) {
     throw new Error(`Failed to read git diff: ${err.message}`);
   }
@@ -340,24 +444,35 @@ function getReleaseContext() {
   let logRange = lastTag ? `${lastTag}..HEAD` : '-n 50';
   let commits = '';
   try {
-    commits = execSync(`git log ${logRange} --oneline`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    // Use --no-merges to eliminate merge noise
+    commits = execSync(`git log ${logRange} --no-merges --oneline`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
   } catch (e) {
     try {
-      commits = execSync('git log -n 30 --oneline', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+      commits = execSync('git log -n 30 --no-merges --oneline', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
     } catch (err) {
       commits = 'No commits found.';
     }
   }
 
+  // Filter automated bot lines
+  const cleanedCommits = commits ? commits.split('\n')
+    .filter(line => !line.match(/\b(dependabot|renovate|snyk|greenkeeper)\b/i))
+    .join('\n') : '';
+
   let statRange = lastTag ? `${lastTag}..HEAD` : 'HEAD~10..HEAD';
   let stats = '';
   try {
-    stats = execSync(`git diff ${statRange} --stat`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
-  } catch (e) {}
+    const excludeArgs = NOISE_FILTER_PATHSPECS.map(p => `"${p}"`).join(' ');
+    stats = execSync(`git diff ${statRange} --stat -- . ${excludeArgs}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+  } catch (e) {
+    try {
+      stats = execSync(`git diff ${statRange} --stat`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    } catch (e2) {}
+  }
 
   return {
     lastTag: lastTag || '(Initial Release / No previous tag)',
-    commits: commits || 'No commits found.',
+    commits: cleanedCommits || 'No commits found.',
     stats: stats || '',
   };
 }
@@ -573,17 +688,53 @@ Format Requirements:
   }
 }
 
+function robustParseJson(rawText) {
+  const clean = cleanCodeBlock(rawText);
+
+  // Strategy 1: Direct JSON.parse
+  try {
+    return JSON.parse(clean);
+  } catch (e) {}
+
+  // Strategy 2: Bracket substring with trailing-comma and control character cleanup
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    let jsonSub = clean.substring(firstBrace, lastBrace + 1)
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, (c) => (c === '\n' || c === '\r' || c === '\t' ? c : ''));
+    try {
+      return JSON.parse(jsonSub);
+    } catch (e) {}
+  }
+
+  // Strategy 3: Key-value regex extraction for item_X: "..."
+  const recovered = {};
+  const kvRegex = /"(item_\d+)"\s*:\s*"((?:\\.|[^"\\])*)"/g;
+  let match;
+  while ((match = kvRegex.exec(clean)) !== null) {
+    recovered[match[1]] = match[2].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
+
+  if (Object.keys(recovered).length > 0) {
+    console.warn(`[just-code-claude] Note: Recovered ${Object.keys(recovered).length} items via regex fallback parser.`);
+    return recovered;
+  }
+
+  throw new Error(`Failed to parse response as JSON:\n${rawText}`);
+}
+
 async function handleReplaceInFile(filePath, options) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
 
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const originalContent = fs.readFileSync(filePath, 'utf-8');
   const regex = /(?:__AGY__|AGY_TEXT|__GEMINI__|GEMINI_TEXT|GEMINI_STR|__GEMINI_TEXT__)\(\s*(["'])([\s\S]*?)\1(?:\s*,\s*(["'])([\s\S]*?)\3)?\s*\)(?:__)?/g;
 
   const matches = [];
   let match;
-  while ((match = regex.exec(content)) !== null) {
+  while ((match = regex.exec(originalContent)) !== null) {
     matches.push({
       full: match[0],
       quote: match[1],
@@ -621,33 +772,34 @@ Input specification:
 ${JSON.stringify(spec, null, 2)}
 `;
 
-  const response = await executeGeneration(prompt, options);
-  const cleanJson = cleanCodeBlock(response);
-
-  let parsed;
   try {
-    parsed = JSON.parse(cleanJson);
-  } catch (err) {
-    const firstBrace = cleanJson.indexOf('{');
-    const lastBrace = cleanJson.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
-    } else {
-      throw new Error(`Failed to parse response as JSON:\n${response}`);
+    const response = await executeGeneration(prompt, options);
+    const parsed = robustParseJson(response);
+
+    let updatedContent = originalContent;
+    let replacedCount = 0;
+    matches.forEach((m, idx) => {
+      const key = `item_${idx}`;
+      if (parsed[key]) {
+        const generatedText = parsed[key];
+        const escaped = generatedText.replace(/\\/g, '\\\\').replace(new RegExp(m.quote, 'g'), `\\${m.quote}`);
+        const replacement = `${m.quote}${escaped}${m.quote}`;
+        updatedContent = updatedContent.replace(m.full, replacement);
+        replacedCount++;
+      }
+    });
+
+    if (replacedCount === 0) {
+      throw new Error("No placeholder matches could be safely mapped to generated items.");
     }
+
+    fs.writeFileSync(filePath, updatedContent, 'utf-8');
+    console.log(`[just-code-claude] Successfully replaced ${replacedCount} placeholder(s) in ${filePath}!`);
+  } catch (err) {
+    // Atomic Rollback safeguard: ensure original file content is intact on disk
+    fs.writeFileSync(filePath, originalContent, 'utf-8');
+    throw new Error(`[Atomic Rollback] Replacement aborted to protect file integrity: ${err.message}`);
   }
-
-  let updatedContent = content;
-  matches.forEach((m, idx) => {
-    const key = `item_${idx}`;
-    const generatedText = parsed[key] || m.description;
-    const escaped = generatedText.replace(/\\/g, '\\\\').replace(new RegExp(m.quote, 'g'), `\\${m.quote}`);
-    const replacement = `${m.quote}${escaped}${m.quote}`;
-    updatedContent = updatedContent.replace(m.full, replacement);
-  });
-
-  fs.writeFileSync(filePath, updatedContent, 'utf-8');
-  console.log(`[just-code-claude] Successfully replaced ${matches.length} placeholders in ${filePath}!`);
 }
 
 async function handleJsonStrings(specPath, outputPath, options) {

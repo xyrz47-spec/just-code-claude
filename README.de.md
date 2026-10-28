@@ -112,6 +112,26 @@ just-code-claude --release v1.2.0 -m "4 argon" -e high -l German
 
 ---
 
+## 🛡️ Resilienz- und Token-Optimierungsarchitektur
+
+Integrierte Engineering-Middleware zur Eliminierung von Token-Verschwendung und zur Bewältigung transienter Laufzeitfehler:
+
+1. **Noise-Filtering Middleware (Token-Einsparung)**:
+   - Schließt Lockfiles (`package-lock.json`, `Cargo.lock`, `pnpm-lock.yaml`), Source Maps, minimierte Bundles (`.min.js`), Binärdateien und Bilder automatisch aus Git-Diffs aus und verhindert so die Verschwendung von Zehntausenden unnötigen Tokens.
+   - Kürzt übergroße Einzeldatei-Diffs (>400 Zeilen) mit einer kompakten Zusammenfassung, um das Kontextfenster des Modells zu schützen.
+   - Bereinigt Merge-Commits (`--no-merges`) und automatisierte Bots (`dependabot`, `renovate`) aus den Git-Logs.
+
+2. **Garantie für Atomares Rollback**:
+   - Bei Netzwerkfehlern, Rate-Limits oder JSON-Parsing-Abbrüchen während `--replace-in-file` wird der ursprüngliche Quellcode auf der Festplatte **garantiert zu 100% wiederhergestellt**, wodurch Teilbeschädigungen ausgeschlossen sind.
+
+3. **Exponentielles Backoff mit Jitter für automatische Wiederholungsversuche**:
+   - Bei vorübergehenden Netzwerkausfällen, Verbindungsabbrüchen oder HTTP 429 (Rate Limit) werden automatisch bis zu 3 Wiederholungsversuche mit zufälliger exponentieller Verzögerung durchgeführt.
+
+4. **3-stufige robuste JSON-Wiederherstellungs-Engine**:
+   - Rekonstruiert Antworten mit Markdown-Fences, nachgestellten Kommas oder Steuerzeichen zuverlässig über einen Regex-Schlüssel-Wert-Fallback-Parser.
+
+---
+
 ## 🛠 CLI-Referenz
 
 ```bash

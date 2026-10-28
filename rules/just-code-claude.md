@@ -92,3 +92,11 @@ To maintain absolute software safety and reliability, Claude is granted **3 stri
    - Concise 1-line technical comments explaining non-obvious algorithms, concurrency locks, regex patterns, or architectural invariants (e.g., `// Concurrency: atomic lock required to prevent race condition`) are permitted. User-facing prose, guides, and docstrings remain strictly delegated to Gemini.
 3. **Command Output & Error Diagnostics**:
    - Reporting raw exit codes, compiler errors, or CLI error outputs verbatim to assist developer debugging is always permitted.
+
+---
+
+## 6. Token Optimization & Atomic Rollback Safeguards
+
+1. **Filtering Middleware**: Git diffs automatically strip noisy lockfiles (`package-lock.json`, `Cargo.lock`, `yarn.lock`, etc.), binaries, and compiled assets to conserve Claude-Gemini context tokens.
+2. **Atomic Rollback Guarantee**: When running `--replace-in-file`, if network failure, rate limiting, or parsing errors occur, the target file is automatically restored to its original state on disk with zero corruption.
+3. **Automatic Retries**: API calls handle transient network issues and HTTP 429 rate limits via exponential backoff.

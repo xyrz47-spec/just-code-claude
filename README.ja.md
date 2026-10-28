@@ -113,6 +113,26 @@ just-code-claude --release v1.2.0 -m "4 argon" -e high -p "Context: 公式安定
 
 ---
 
+## 🛡️ 安定性とトークン最適化アーキテクチャ (Resilience & Token Optimization)
+
+AIモデル間のデータ連携において発生するトークン浪費を防ぎ、ネットワークやランタイムの例外に耐えうる堅牢なミドルウェアが組み込まれています：
+
+1. **ノイズ除去・トークン節約ミドルウェア (Noise-Filtering Middleware)**:
+   - Git diffの抽出時に `package-lock.json`、`Cargo.lock`、`pnpm-lock.yaml` などのロックファイル、ソースマップ、圧縮バンドル（`.min.js`）、バイナリ、画像ファイルを自動除外し、**数万トークンに及ぶ無意味なdiffの浪費を未然に防止**します。
+   - 400行を超える巨大な単一ファイルdiffは要約マーカーに自動置換され、LLMのコンテキストウィンドウを安全に保護します。
+   - Gitログからマージコミット（`--no-merges`）や自動依存性更新ボット（`dependabot`、`renovate`）のログを自動フィルタリングします。
+
+2. **アトミック・ロールバック保証 (Atomic Rollback Safeguard)**:
+   - `--replace-in-file` 実行中にネットワーク切断、APIエラー、JSONパース不整合などの例外が発生した場合、**ディスク上のソースコードを100%元の状態へ即座に復元**し、コードの部分破損や不整合を完全に防止します。
+
+3. **指数バックオフ自動再試行 (Exponential Backoff with Jitter)**:
+   - 一時的なネットワーク障害、ソケット切断、HTTP 429（Rate Limit / Quota）の発生時、ジッター付き指数バックオフ（1秒、2秒、4秒…）により最大3回まで自動再試行します。
+
+4. **3段階の堅牢なJSON復旧エンジン (3-Tier Robust Parser)**:
+   - モデルが返した出力にマークダウンフェンス、末尾カンマ（Trailing Commas）、制御文字が含まれていても、正規表現フォールバック抽出により安全にパースを復元します。
+
+---
+
 ## 🛠 CLIリファレンス
 
 ```bash

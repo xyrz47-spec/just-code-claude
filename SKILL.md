@@ -66,6 +66,14 @@ The skill provides the `just-code-claude` CLI command (backed by `scripts/agy_ca
 3. **Antigravity CLI (`agy`)**: Pre-authenticated local agent CLI (`--backend agy`).
 4. **Direct Gemini REST API**: Uses `GEMINI_API_KEY` or `--api-key` (`--backend api`).
 5. **Auto Detection (default)**: Uses `agy` if installed; falls back to Direct Gemini API if `GEMINI_API_KEY` is present.
+6. **Token Optimization & Diff Filtering Middleware**:
+   - Automatically excludes noisy lockfiles (`package-lock.json`, `Cargo.lock`, `pnpm-lock.yaml`, etc.), binaries, and minified bundles from git diffs.
+   - Truncates oversized single-file diff chunks (>400 lines) with an explicit summary marker to conserve prompt token budgets.
+   - Cleans release logs by stripping merge noise (`--no-merges`) and automated bot activity.
+7. **Resilience & Atomic Rollback Safeguard**:
+   - Transient network errors and HTTP 429 rate limits are automatically handled via Exponential Backoff with randomized jitter (3 retries).
+   - In-code string replacement operates under an **Atomic Rollback Guarantee**: if generation or parsing fails, the target file is guaranteed to be restored intact with zero corruption.
+   - Robust 3-tier JSON recovery engine salvages model outputs with markdown fences, trailing commas, or unescaped control characters.
 
 ---
 
