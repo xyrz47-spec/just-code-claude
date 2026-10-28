@@ -16,17 +16,19 @@ if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
 }
 
-console.log('=== [1] Testing basic prompt generation via agy_call.js ===');
+console.log('=== [1] Testing basic prompt generation with 3.8 flash & effort setting ===');
 try {
   const run1 = spawnSync(process.execPath, [
     agyCallJs,
+    '-m', '3.8 flash',
+    '-e', 'medium',
     '-p', "Say 'TEST_SUCCESS' and nothing else",
     '--raw'
   ], { encoding: 'utf-8', timeout: 30000 });
 
   console.log('Output:\n', run1.stdout || run1.stderr);
   if (run1.status === 0 && (run1.stdout.includes('TEST_SUCCESS') || run1.stdout.length > 0)) {
-    console.log('>>> [1] PASS: Basic prompt generation works!\n');
+    console.log('>>> [1] PASS: Basic prompt generation with 3.8 flash works!\n');
   } else {
     console.log('>>> [1] FAILED: Return code', run1.status);
   }
@@ -34,7 +36,7 @@ try {
   console.error('>>> [1] FAIL:', e.message);
 }
 
-console.log('=== [2] Testing In-Code String Replacement (__AGY__ & __GEMINI__ placeholders) ===');
+console.log('=== [2] Testing In-Code String Replacement with Detailed Context Directives ===');
 const sampleCodePath = path.join(tmpDir, 'SampleComponent.jsx');
 const sampleCode = `
 import React from 'react';
@@ -42,10 +44,10 @@ import React from 'react';
 export function WarningBanner() {
   return (
     <div className="alert-warning">
-      <h3>__AGY__("Session expiry warning title", "English")__</h3>
-      <p>__GEMINI__("Notice explaining auto-logout in 5 minutes", "English")__</p>
+      <h3>__AGY__("Context: Expiration modal header | Intent: Warn user session expires in 5m | Tone: Calm, urgent | Constraints: Under 35 chars, Title Case", "English")__</h3>
+      <p>__GEMINI__("Context: Expiration modal body | Intent: Explain work is autosaved and clicking extend prevents logout | Tone: Reassuring | Constraints: Single sentence under 70 chars", "English")__</p>
       <button className="btn-extend">
-        __AGY__("Extend session CTA button", "English")__
+        __AGY__("Context: Modal primary CTA | Intent: Refresh OAuth token | Tone: Direct | Constraints: 2 words, Title Case", "English")__
       </button>
     </div>
   );
@@ -57,6 +59,8 @@ fs.writeFileSync(sampleCodePath, sampleCode, 'utf-8');
 try {
   const run2 = spawnSync(process.execPath, [
     agyCallJs,
+    '-m', '3.8 flash',
+    '-e', 'medium',
     '--replace-in-file', sampleCodePath
   ], { encoding: 'utf-8', timeout: 30000 });
 

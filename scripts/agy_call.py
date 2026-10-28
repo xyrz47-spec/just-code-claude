@@ -7,7 +7,14 @@ Supports two backends:
  1. Antigravity CLI ('agy') - Pre-authenticated local agent CLI
  2. Direct Google Gemini REST API - Uses GEMINI_API_KEY or GOOGLE_API_KEY
 
-Zero external dependencies (uses standard library: urllib.request, subprocess, sys, os, re, json, argparse).
+Supported Models:
+ - 3.8 flash: 'gemini-3.8-flash-high' (Default: Fast, agile, ideal for UI copy & components)
+ - 4 argon:   'gemini-4-argon-high'   (Deep reasoning, complex architecture & release docs)
+
+Reasoning Effort:
+ - Configurable via -e, --effort <low|medium|high|xhigh|max> or GEMINI_EFFORT env
+
+Zero external dependencies (Standard library only).
 """
 
 import argparse
@@ -19,6 +26,31 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+
+
+def normalize_model(model: str = None) -> str:
+    env_model = os.environ.get("GEMINI_MODEL")
+    raw = (model or env_model or "gemini-3.8-flash").strip()
+    lower = re.sub(r"[\s_-]+", "", raw.lower())
+
+    # 4 argon: gemini-4-argon
+    if "argon" in lower or lower == "4" or lower == "4argon":
+        return "gemini-4-argon"
+    # 3.8 flash: gemini-3.8-flash
+    if "flash" in lower or "38" in lower or "3.8" in lower:
+        return "gemini-3.8-flash"
+    return raw
+
+
+def normalize_effort(effort: str = None) -> str:
+    env_effort = os.environ.get("GEMINI_EFFORT") or os.environ.get("AGY_EFFORT")
+    raw = (effort or env_effort or "").strip().lower()
+    if not raw:
+        return None
+    valid = ["low", "medium", "high", "xhigh", "max"]
+    if raw in valid:
+        return raw
+    return None
 
 
 def find_agy_executable() -> str:
@@ -33,11 +65,12 @@ def find_agy_executable() -> str:
 
 def run_agy_cli(prompt_text: str, model: str = None, effort: str = None) -> str:
     agy_bin = find_agy_executable()
-    chosen_model = model or "gemini-3.8-flash-high"
+    chosen_model = normalize_model(model)
+    chosen_effort = normalize_effort(effort)
     cmd = [agy_bin, "-p", prompt_text, "--model", chosen_model, "--dangerously-skip-permissions"]
 
-    if effort:
-        cmd.extend(["--effort", effort])
+    if chosen_effort:
+        cmd.extend(["--effort", chosen_effort])
 
     proc = subprocess.run(
         cmd,
@@ -54,12 +87,29 @@ def run_agy_cli(prompt_text: str, model: str = None, effort: str = None) -> str:
     return proc.stdout.strip()
 
 
-def run_gemini_api(prompt_text: str, api_key: str, model: str = None) -> str:
+def run_gemini_api(prompt_text: str, api_key: str, model: str = None, effort: str = None) -> str:
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set. Please provide --api-key or set GEMINI_API_KEY in your environment.")
 
-    chosen_model = model or "gemini-2.5-flash"
+    chosen_model = normalize_model(model)
+    chosen_effort = normalize_effort(effort)
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{chosen_model}:generateContent?key={urllib.parse.quote(api_key)}"
+
+    generation_config = {
+        "temperature": 0.7
+    }
+
+    effort_budgets = {
+        "low": 1024,
+        "medium": 4096,
+        "high": 8192,
+        "xhigh": 16384,
+        "max": -1
+    }
+    if chosen_effort and chosen_effort in effort_budgets:
+        generation_config["thinkingConfig"] = {
+            "thinkingBudget": effort_budgets[chosen_effort]
+        }
 
     payload = {
         "contents": [
@@ -69,9 +119,7 @@ def run_gemini_api(prompt_text: str, api_key: str, model: str = None) -> str:
                 ]
             }
         ],
-        "generationConfig": {
-            "temperature": 0.7
-        }
+        "generationConfig": generation_config
     }
 
     data = json.dumps(payload).encode("utf-8")
@@ -97,7 +145,7 @@ def execute_generation(prompt_text: str, args) -> str:
     backend = args.backend
 
     if backend == "api":
-        return run_gemini_api(prompt_text, args.api_key, args.model)
+        return run_gemini_api(prompt_text, args.api_key, args.model, args.effort)
 
     if backend == "agy":
         return run_agy_cli(prompt_text, args.model, args.effort)
@@ -112,10 +160,10 @@ def execute_generation(prompt_text: str, args) -> str:
         except Exception as e:
             if args.api_key:
                 print(f"[just-code-claude] agy CLI failed, falling back to Direct Gemini API: {e}", file=sys.stderr)
-                return run_gemini_api(prompt_text, args.api_key, args.model)
+                return run_gemini_api(prompt_text, args.api_key, args.model, args.effort)
             raise e
     elif args.api_key:
-        return run_gemini_api(prompt_text, args.api_key, args.model)
+        return run_gemini_api(prompt_text, args.api_key, args.model, args.effort)
     else:
         raise RuntimeError("No execution backend available. Either install the 'agy' CLI or set GEMINI_API_KEY for Direct API access.")
 
@@ -152,10 +200,11 @@ def handle_replace_in_file(file_path: str, args):
         for i, m in enumerate(matches)
     }
 
-    prompt = f"""You are a world-class software UI/UX copywriter and localization specialist.
+    prompt = f"""You are a world-class software UI/UX copywriter, localization specialist, and technical writer.
 Below is a JSON map of UI text placeholders requiring natural, human copy for source code.
 For each item:
-- Read the description and target language.
+- Read the detailed context, user intent, tone, constraints, and target language specified in the description.
+- Follow all constraints (length, casing, tone, audience) strictly.
 - Craft crisp, professional, production-ready copy appropriate for the user experience.
 - Do NOT include surrounding quotes in the values.
 - Return ONLY a valid JSON object mapping each key to its final text string. No markdown block, no extra text.
@@ -232,11 +281,11 @@ def main():
     parser.add_argument("-f", "--file", help="Read prompt/context from a file")
     parser.add_argument("-o", "--output", help="Write output directly to a file")
     parser.add_argument("-b", "--backend", choices=["auto", "agy", "api"], default="auto", help="Backend engine: 'auto' (default), 'agy', or 'api'")
-    parser.add_argument("-m", "--model", help="Model name (default for agy: gemini-3.8-flash-high, for api: gemini-2.5-flash)")
+    parser.add_argument("-m", "--model", help="Choose model: '3.8 flash' (gemini-3.8-flash-high) or '4 argon' (gemini-4-argon-high)")
+    parser.add_argument("-e", "--effort", choices=["low", "medium", "high", "xhigh", "max"], help="Reasoning effort level")
     parser.add_argument("--api-key", default=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"), help="Google Gemini API key")
     parser.add_argument("-l", "--lang", help="Target output language (e.g. English, Korean, Japanese, Spanish)")
     parser.add_argument("-s", "--system", help="System prompt instructions")
-    parser.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max"], help="Reasoning effort for agy")
     parser.add_argument("--replace-in-file", help="In-place replacement of __AGY__ or __GEMINI__ in code file")
     parser.add_argument("--json-strings", help="Generate copy for a JSON map of keys -> descriptions")
     parser.add_argument("--raw", action="store_true", help="Print raw text without extra formatting")

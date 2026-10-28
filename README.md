@@ -1,6 +1,11 @@
-# Just Code, Claude! 💻🚫✍️
+# Just Code, Claude (`just-code-claude`)
 
-<p align="left">
+<p align="center">
+  <b>Claude writes code. Gemini writes text.</b><br>
+  An automated workflow skill separating engineering logic from human language generation.
+</p>
+
+<p align="center">
   <a href="README.md"><b>English</b></a> •
   <a href="README.ko.md"><b>한국어</b></a> •
   <a href="README.ja.md"><b>日本語</b></a> •
@@ -15,13 +20,15 @@
 [![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude writes code. Gemini writes text."**  
-> An open-source **Claude Code skill** designed to separate engineering tasks: Claude focuses on software architecture and code logic, while delegating natural language deliverables (documentation, READMEs, commit messages, and in-code string literals inside quotes) to **Google Gemini** via the **Google Gemini REST API** or the **Antigravity CLI (`agy`)**.
+> An open-source **Claude Code skill** designed to separate engineering tasks: Claude focuses on software architecture and code logic, while delegating natural language deliverables (documentation, READMEs, commit messages, and in-code string literals inside quotes) to **Google Gemini** (`3.8 flash` or `4 argon` with customizable reasoning effort) via the **Google Gemini REST API** or the **Antigravity CLI (`agy`)**.
 
 ---
 
 ## 📑 Table of Contents
 
 - [Motivation & Design Philosophy](#-motivation--design-philosophy)
+- [Supported Models & Reasoning Effort](#-supported-models--reasoning-effort)
+- [Detailed Context Directives (Prompting Standard)](#-detailed-context-directives-prompting-standard)
 - [How It Works](#-how-it-works)
 - [Prerequisites](#-prerequisites)
 - [Installation Guide](#-installation-guide)
@@ -35,7 +42,7 @@
   - [2. In-Code String Replacement](#2-workflow-in-code-string-replacement)
   - [3. Documentation & Markdown Generation](#3-workflow-generating-documentation--markdown)
   - [4. Batch UI Strings & i18n Localization](#4-workflow-batch-i18n-localization)
-  - [5. Git Commit & PR Messages](#5-workflow-git-commit--pr-messages)
+  - [5. Conventional Git Commit Messages](#5-workflow-git-commit--pr-messages)
 - [CLI Reference](#-cli-reference)
 - [Verification & Testing](#-verification--testing)
 - [Repository Structure](#-repository-structure)
@@ -53,30 +60,69 @@ In modern AI-assisted engineering workflows, different language models exhibit d
 
 ```
                        ┌──────────────────────────────┐
-                       │         User Request         │
+                       │         Developer            │
+                       │    "Build me a checkout      │
+                       │      flow with modals"       │
                        └──────────────┬───────────────┘
-                                      │
-                   ┌──────────────────┴──────────────────┐
-                   ▼                                     ▼
+                                      ▼
+                       ┌──────────────────────────────┐
+                       │         Claude Code          │
+                       │  (/just-code-claude active)  │
+                       └──────┬────────────────┬──────┘
+                              │                │
         [ Code Logic & Architecture ]          [ Human Language & Copy ]
                    │                                     │
-             Claude Code                            Google Gemini
-                   │                         (Gemini API or 'agy' CLI)
+              Claude Code                            Google Gemini
+                   │                             (3.8 flash / 4 argon)
                    ▼                                     ▼
-      Functions, Types, State, AST              Documentation, UI Labels,
-      & Placeholders (__AGY__)                  Error Messages & Copy
+      Function components, hooks,            UI button labels, toasts,
+      data mutations, state machines,        error alerts, docs, READMEs,
+      and CSS layout                         and commit messages
                    │                                     │
                    └──────────────────┬──────────────────┘
                                       ▼
                        ┌──────────────────────────────┐
-                       │  Finished Production Code    │
+                       │   Polished Production Code   │
                        └──────────────────────────────┘
 ```
 
-- **Claude's Scope**: System architecture, logic, algorithms, state management, types, tests, debugging, and executing the copy generation tool.
-- **Gemini's Scope**: Technical documentation, READMEs, release notes, commit messages, and string literals (`""` or `''`) intended for human reading.
+---
 
-> **Note on Enforcement**: As a Claude Code skill (`SKILL.md`), this operates as an **instructional workflow directive** for the AI agent rather than a hard compiler or OS-level sandbox. It guides Claude to follow this division of labor systematically.
+## 🤖 Supported Models & Reasoning Effort
+
+The skill is built around two primary Google Gemini models with configurable reasoning effort:
+
+| Model | CLI Alias | Primary Use Case | Recommended Effort |
+| :--- | :--- | :--- | :--- |
+| **`3.8 flash`** *(Default)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | Ultra-fast UI copy, button labels, modal dialogs, form errors, toast banners | `low` or `medium` |
+| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | High-reasoning architectural docs, comprehensive API guides, technical RFCs | `high` or `max` |
+
+### Reasoning Effort (`-e, --effort`):
+- `low`: Microcopy, buttons, individual string labels (instantaneous response).
+- `medium` *(Default)*: Modals, form validations, toast notifications, commit messages.
+- `high`: Deep technical documentation, architecture overviews, complete READMEs.
+- `xhigh` / `max`: Comprehensive migration specs, security whitepapers, complex multi-page guides.
+
+---
+
+## 🎯 Detailed Context Directives (Prompting Standard)
+
+To ensure the highest quality copy, Claude is instructed to provide **rich, multi-dimensional context directives** rather than brief or vague placeholders:
+
+### The 5 Dimensions Claude Specifies:
+1. **Context**: Specific component, modal, or form screen state.
+2. **Intent**: Exact user action, business goal, or reassurance needed.
+3. **Tone**: Desired brand voice (e.g., empathetic, solemn, energetic, professional).
+4. **Constraints**: Character limits, sentence counts, Title Case vs sentence case.
+5. **Target Language**: Explicit destination language (English, Korean, Japanese, Spanish, etc.).
+
+### Example:
+```tsx
+// Claude inserts rich context directives:
+<button onClick={onConfirm}>
+  __AGY__("Context: Subscription payment modal primary CTA | Intent: Prompt user to authorize annual subscription with 20% discount | Tone: Motivating, clear | Constraints: 3 words, Title Case | Model: 3.8 flash", "English")__
+</button>
+```
 
 ---
 
@@ -144,13 +190,17 @@ Recommended for most developers and CI/CD pipelines:
    # Windows PowerShell
    $env:GEMINI_API_KEY="your-api-key-here"
    ```
-3. Default model: `gemini-2.5-flash` (or specify via `-m`, e.g. `-m gemini-2.0-flash`).
+3. Set optional model and effort defaults:
+   ```bash
+   export GEMINI_MODEL="gemini-3.8-flash"
+   export GEMINI_EFFORT="medium"
+   ```
 
 ### Backend 2: Antigravity CLI (`agy`)
 For users working in an Antigravity environment:
 - If `agy` is found on your `PATH` or standard installation path, it is automatically used.
 - Uses your local Antigravity CLI authentication.
-- Default model: `gemini-3.8-flash-high` (Antigravity environment model).
+- Seamlessly passes `--model gemini-3.8-flash` or `--model gemini-4-argon` along with `--effort`.
 
 ---
 
@@ -171,8 +221,8 @@ Activate just-code-claude mode. You build the code architecture and logic, and d
 
 ### 2. Workflow: In-Code String Replacement
 
-#### Step A: Claude Writes Code with Placeholders
-Claude implements the logic and component structure, inserting placeholders: `__AGY__("instruction"[, "target_language"])` or `__GEMINI__("instruction"[, "target_language"])`:
+#### Step A: Claude Writes Code with Rich Placeholders
+Claude implements the logic and component structure, inserting detailed directives: `__AGY__("Context: ... | Intent: ... | Tone: ... | Constraints: ...", "Language")`:
 
 ```tsx
 // src/components/SessionExpiryBanner.tsx
@@ -181,10 +231,14 @@ import React from 'react';
 export function SessionExpiryBanner({ onExtend }) {
   return (
     <div className="alert-box">
-      <h3>__AGY__("Session expiry warning title", "English")__</h3>
-      <p>__AGY__("Notice explaining auto-logout in 5 minutes with extension advice", "English")__</p>
+      <h3>
+        __AGY__("Context: Fixed sticky warning banner appearing 5m before token expiry | Intent: Alert user session is ending | Tone: Calm, urgent | Constraints: Under 35 chars, Title Case", "English")__
+      </h3>
+      <p>
+        __AGY__("Context: Expiration banner body | Intent: Explain work is safely autosaved and clicking extend prevents logout | Tone: Reassuring, helpful | Constraints: Single sentence under 70 chars", "English")__
+      </p>
       <button onClick={onExtend}>
-        __AGY__("Extend session CTA button", "English")__
+        __AGY__("Context: Expiration banner primary CTA button | Intent: Trigger token refresh | Tone: Direct | Constraints: 2 words, Title Case", "English")__
       </button>
     </div>
   );
@@ -194,9 +248,9 @@ export function SessionExpiryBanner({ onExtend }) {
 #### Step B: Automated Replacement
 Claude runs the bundled CLI tool:
 ```bash
-node scripts/agy_call.js --replace-in-file src/components/SessionExpiryBanner.tsx
+node scripts/agy_call.js --replace-in-file src/components/SessionExpiryBanner.tsx -m "3.8 flash" -e medium
 ```
-*(Or in Python: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
+*(Or in Python: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx -m "3.8 flash" -e medium`)*
 
 #### Step C: Final Production Code
 The placeholders are replaced in-place with generated copy:
@@ -221,14 +275,14 @@ export function SessionExpiryBanner({ onExtend }) {
 
 ### 3. Workflow: Generating Documentation & Markdown
 
-Delegate technical documentation, guides, or READMEs to Gemini:
+Delegate technical documentation, architecture guides, or READMEs to Gemini (`4 argon` with `high` effort):
 
 ```bash
-# Via Direct Gemini API
-node scripts/agy_call.js -p "Write an API Getting Started guide in English for our REST endpoints" -b api -o docs/API_GUIDE.md
+# Architecture specification with 4 argon & high effort
+node scripts/agy_call.js -m "4 argon" -e high -p "Context: Event-driven microservices architecture overview. Audience: Senior Backend Engineers. Required Sections: Overview, Sequence Diagram, Failure Modes. Target Language: English." -o docs/ARCHITECTURE.md
 
-# Or via agy CLI (if installed)
-node scripts/agy_call.js -p "Write an architectural overview in English" -b agy -o ARCHITECTURE.md
+# Developer guide with 3.8 flash
+node scripts/agy_call.js -m "3.8 flash" -e medium -p "Write an API Getting Started guide in English for our REST endpoints" -o docs/API_GUIDE.md
 ```
 
 ---
@@ -239,9 +293,9 @@ Given an input specification `ui_spec.json`:
 ```json
 {
   "auth": {
-    "login_cta": "Primary action button to log in",
-    "forgot_password": "Link text for resetting credentials",
-    "password_hint": "Hint indicating password must be at least 8 characters"
+    "login_cta": "Context: Primary login button | Constraints: 2 words, Title Case",
+    "forgot_password": "Context: Password reset link | Tone: Subtle, helpful",
+    "password_hint": "Context: Password input helper | Constraints: Under 50 chars"
   }
 }
 ```
@@ -249,10 +303,10 @@ Given an input specification `ui_spec.json`:
 Generate production-ready locale files:
 ```bash
 # Generate Spanish translations
-node scripts/agy_call.js --json-strings ui_spec.json -o src/locales/es.json --lang Spanish
+node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -o src/locales/es.json --lang Spanish
 
 # Generate Korean translations
-node scripts/agy_call.js --json-strings ui_spec.json -o src/locales/ko.json --lang Korean
+node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -o src/locales/ko.json --lang Korean
 ```
 
 ---
@@ -265,8 +319,8 @@ When preparing commits or pull requests:
 # 1. Capture staged diff
 git diff --staged > .git_diff.tmp
 
-# 2. Call agy to author the Conventional Commit message
-node scripts/agy_call.js -f .git_diff.tmp -p "Analyze this diff and draft a Conventional Commits message with a concise title under 50 chars and a descriptive body. Target language: English." -o .commit_msg.tmp
+# 2. Call Gemini to author the Conventional Commit message
+node scripts/agy_call.js -m "3.8 flash" -e medium -f .git_diff.tmp -p "Context: Staged git diff. Intent: Draft a Conventional Commits message with a concise title under 50 chars and a bulleted technical body. Target language: English." -o .commit_msg.tmp
 
 # 3. Commit using the generated text
 git commit -F .commit_msg.tmp
@@ -281,7 +335,14 @@ rm .git_diff.tmp .commit_msg.tmp
 Usage: node scripts/agy_call.js [options]
    or: python scripts/agy_call.py [options]
 
-Dual-Backend Execution:
+Supported Models:
+  - '3.8 flash' (gemini-3.8-flash) [Default]  : Ultra-fast, ideal for UI copy, components, toasts
+  - '4 argon'   (gemini-4-argon)              : Maximum reasoning depth, architecture docs, guides
+
+Reasoning Effort:
+  -e, --effort <low|medium|high|xhigh|max>    : Configure reasoning budget / effort
+
+Execution Backends:
   1. Direct Gemini API: Used when GEMINI_API_KEY is present or with -b api.
   2. Antigravity CLI (agy): Automatically detected if installed on the host.
 
@@ -289,12 +350,12 @@ Options:
   -p, --prompt <text>          Direct prompt text to generate
   -f, --file <path>            Read prompt/context from a file
   -o, --output <path>          Write generated output directly to a file
+  -m, --model <name>           Choose model: '3.8 flash' or '4 argon'
+  -e, --effort <level>         Set reasoning effort: low, medium, high, xhigh, max
   -b, --backend <mode>         Backend engine: 'auto' (default), 'api', or 'agy'
-  -m, --model <name>           Model name (default for api: gemini-2.5-flash, for agy: gemini-3.8-flash-high)
   --api-key <key>              Google Gemini API key (or set GEMINI_API_KEY env var)
   -l, --lang <language>        Target output language (e.g. English, Korean, Japanese, Spanish)
   -s, --system <text>          System instructions prepended to prompt
-  --effort <level>             Reasoning effort for agy (low, medium, high)
   --replace-in-file <path>     Scan code file for __AGY__("...") or __GEMINI__("...") placeholders
                                and replace them in-place with generated copy
   --json-strings <path>        Generate copy for a JSON map of keys -> descriptions
@@ -306,7 +367,7 @@ Options:
 
 ## 🧪 Verification & Testing
 
-Run the automated self-test to verify generation and in-code placeholder replacement on your system:
+Run the automated self-test to verify generation, model switching, and in-code placeholder replacement on your system:
 
 ```bash
 npm test
@@ -336,10 +397,10 @@ just-code-claude/
 │   ├── agy_call.py          # Python dual-backend runner (Standard library only)
 │   └── test_skill.js        # Automated end-to-end verification test suite
 ├── examples/
-│   ├── before_code.tsx      # Code sample featuring __AGY__ placeholders
+│   ├── before_code.tsx      # Code sample featuring rich __AGY__ placeholders
 │   └── ui_spec.json         # Localization specification example
 └── templates/
-    └── prompt_templates.md  # Prompt templates for UX copy and documentation
+    └── prompt_templates.md  # Detailed prompt templates for UX copy and documentation
 ```
 
 ---
