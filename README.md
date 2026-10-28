@@ -1,5 +1,15 @@
 # Just Code, Claude! 💻🚫✍️
 
+<p align="left">
+  <a href="README.md"><b>English</b></a> •
+  <a href="README.ko.md"><b>한국어</b></a> •
+  <a href="README.ja.md"><b>日本語</b></a> •
+  <a href="README.zh-CN.md"><b>简体中文</b></a> •
+  <a href="README.es.md"><b>Español</b></a> •
+  <a href="README.fr.md"><b>Français</b></a> •
+  <a href="README.de.md"><b>Deutsch</b></a>
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-7C3AED.svg)](https://anthropic.com)
 [![Dual Backend](https://img.shields.io/badge/Backend-Antigravity%20CLI%20%7C%20Gemini%20API-4285F4.svg)](https://google.com)

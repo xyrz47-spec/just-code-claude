@@ -10,6 +10,13 @@ if (-not (Test-Path $targetDir)) {
 $filesToCopy = @(
     "SKILL.md",
     "README.md",
+    "README.ko.md",
+    "README.ja.md",
+    "README.zh-CN.md",
+    "README.es.md",
+    "README.fr.md",
+    "README.de.md",
+    "LICENSE",
     "package.json"
 )
 
