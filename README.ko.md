@@ -10,26 +10,26 @@
   <a href="README.de.md"><b>Deutsch</b></a>
 </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-7C3AED.svg)](https://anthropic.com)
-[![Dual Backend](https://img.shields.io/badge/Backend-Antigravity%20CLI%20%7C%20Gemini%20API-4285F4.svg)](https://google.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Target: Claude Code](https://img.shields.io/badge/Agent-Claude%20Code-7C3AED.svg)](https://github.com/xyrz47-spec/just-code-claude)
+[![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude는 코드를 짜고, Gemini는 글을 씁니다."**  
-> 엄격한 분업을 강제하는 **Claude Code 전용 스킬**: Claude는 코드 아키텍처, 알고리즘, 로직 작성에 전념하고, 모든 자연어 텍스트 산출물(문서, README, 커밋 메시지 및 코드 안의 `""` 문자열 리터럴)은 **Antigravity CLI (`agy`)** 또는 **Google Gemini 공식 REST API**를 통해 **Google Gemini**가 전담 생성합니다.
+> Claude Code를 위한 오픈소스 **엔지니어링 분업 스킬**: Claude는 코드 아키텍처와 로직 작성에 집중하고, 모든 자연어 텍스트 산출물(문서, README, 커밋 메시지 및 코드 내 `""` 문자열 리터럴)은 **Google Gemini REST API** 또는 **Antigravity CLI (`agy`)**를 통해 **Google Gemini**에 위임하여 생성합니다.
 
 ---
 
 ## 📑 목차
 
-- [왜 just-code-claude인가?](#-왜-just-code-claude인가)
+- [기획 의도 및 설계 철학](#-기획-의도-및-설계-철학)
 - [동작 원리](#-동작-원리)
 - [사전 요구 사항](#-사전-요구-사항)
 - [설치 가이드](#-설치-가이드)
-  - [방법 1: 글로벌 Claude Code 스킬로 설치 (권장)](#방법-1-글로벌-claude-code-스킬로-설치-권장)
-  - [방법 2: 프로젝트 단위 스킬로 설치](#방법-2-프로젝트-단위-스킬로-설치)
-- [설정 및 백엔드](#-설정-및-백엔드)
-  - [백엔드 1: Antigravity CLI (`agy`)](#백엔드-1-antigravity-cli-agy)
-  - [백엔드 2: Google Gemini 공식 REST API](#백엔드-2-google-gemini-공식-rest-api)
+  - [추천: `npx skills`를 통한 원클릭 설치](#추천-npx-skills를-통한-원클릭-설치)
+  - [대안: Git Clone을 통한 설치](#대안-git-clone을-통한-설치)
+- [설정 및 실행 백엔드](#-설정-및-실행-백엔드)
+  - [백엔드 1: Google Gemini 공식 REST API (범용 표준)](#백엔드-1-google-gemini-공식-rest-api-범용-표준)
+  - [백엔드 2: Antigravity CLI (`agy`)](#백엔드-2-antigravity-cli-agy)
 - [사용법 및 워크플로우](#-사용법-및-워크플로우)
   - [1. Claude Code에서 스킬 활성화](#1-claude-code에서-스킬-활성화)
   - [2. 코드 내 문자열 치환 워크플로우](#2-코드-내-문자열-치환-워크플로우)
@@ -43,11 +43,13 @@
 
 ---
 
-## 🌟 왜 `just-code-claude`인가?
+## 🌟 기획 의도 및 설계 철학
 
-Claude는 가장 뛰어난 코딩 AI 중 하나로 소프트웨어 아키텍처, 복잡한 상태 관리, AST 조작, 타입 설계에 매우 탁월합니다. 하지만 많은 엔지니어들은 자연스럽고 사용자 친화적인 카피, 현지화된 안내 문구, 세심한 에러 메시지 및 기술 문서를 작성할 때 **Google Gemini**를 선호합니다.
+현대 AI 보조 개발 환경에서 모델마다 각각의 특화된 강점이 있습니다:
+- **Claude**: 복잡한 소프트웨어 아키텍처, AST 조작, TypeScript 타입 시스템, 정밀한 알고리즘 설계에 탁월합니다.
+- **Google Gemini**: 다국어 표현의 유려함, 친절한 사용자 대상 문구 작성, 빠른 텍스트 생성 속도를 제공합니다.
 
-`just-code-claude`는 이러한 강점을 결합하여 자동화된 분업 체계를 구축합니다:
+`just-code-claude`는 이러한 두 모델의 특성을 결합하여 자동화된 분업 워크플로우를 제공합니다:
 
 ```
                        ┌──────────────────────────────┐
@@ -59,7 +61,7 @@ Claude는 가장 뛰어난 코딩 AI 중 하나로 소프트웨어 아키텍처,
           [ 코드 로직 및 아키텍처 ]               [ 자연어 및 텍스트 카피 ]
                    │                                     │
               Claude Code                           Google Gemini
-                   │                       (agy CLI 또는 Gemini REST API)
+                   │                       (Gemini API 또는 agy CLI)
                    ▼                                     ▼
         함수, 타입, 상태, AST                  공식 문서, UI 버튼 라벨,
       및 플레이스홀더 (__AGY__)                에러 알림 메시지 및 안내문
@@ -71,8 +73,10 @@ Claude는 가장 뛰어난 코딩 AI 중 하나로 소프트웨어 아키텍처,
                        └──────────────────────────────┘
 ```
 
-- **Claude의 영역**: 시스템 아키텍처, 로직, 알고리즘, 상태 관리, 타입, 테스트 코드, 버그 수정 및 CLI 스크립트 오케스트레이션.
-- **Gemini의 영역**: 기술 문서 작성, README, 릴리즈 노트, 커밋 메시지 및 사람이 읽는 모든 따옴표(`""`, `''`) 안의 텍스트 리터럴.
+- **Claude의 작업 영역**: 시스템 아키텍처, 로직, 알고리즘, 상태 관리, 타입 정의, 테스트 코드, 버그 수정 및 생성 도구 실행.
+- **Gemini의 작업 영역**: 기술 문서 작성, README, 릴리즈 노트, 커밋 메시지 및 사용자가 읽는 코드 내 따옴표(`""`, `''`) 안의 텍스트 리터럴.
+
+> **분업 통제에 대한 안내**: 본 프로젝트는 컴파일러나 OS 레벨의 강제 샌드박스가 아닌, Claude Code 스킬 명세(`SKILL.md`)를 통해 AI 에이전트에게 체계적인 분업 행동 지침을 제공하는 **프롬프트 기반 워크플로우 디렉티브**입니다.
 
 ---
 
@@ -80,30 +84,27 @@ Claude는 가장 뛰어난 코딩 AI 중 하나로 소프트웨어 아키텍처,
 
 텍스트 생성 스크립트를 실행하려면 다음이 필요합니다:
 
-- **런타임**: [Node.js](https://nodejs.org) (v18 이상 권장) 또는 [Python](https://python.org) (v3.8 이상).
+- **런타임**: [Node.js](https://nodejs.org) (v18 이상) 또는 [Python](https://python.org) (v3.8 이상).
 - **실행 백엔드** (둘 중 하나 선택):
-  1. **Antigravity CLI (`agy`)**: 설치 및 인증되어 있는 경우 별도의 API 키 없이 즉시 동작합니다.
-  2. **Google Gemini API Key**: `agy`가 없는 환경에서는 [Google AI Studio](https://aistudio.google.com/)에서 발급받은 `GEMINI_API_KEY` (또는 `GOOGLE_API_KEY`) 환경변수를 등록하기만 하면 됩니다.
+  1. **Google Gemini API Key (범용 표준)**: [Google AI Studio](https://aistudio.google.com/)에서 API 키를 발급받아 `GEMINI_API_KEY` 환경변수로 등록합니다.
+  2. **Antigravity CLI (`agy`)**: Antigravity 환경이 설치되어 있고 `agy` CLI 인증이 완료되어 있는 경우 별도의 API 키 없이 자동 감지되어 동작합니다.
 
-> **참고**: `scripts/agy_call.js`와 `scripts/agy_call.py`는 **외부 패키지 의존성이 전혀 없습니다 (Zero Dependencies)**. Node.js 내장 `fetch` 및 Python 내장 `urllib.request`를 사용하므로 별도의 `npm install`이나 `pip install` 과정이 필요하지 않습니다.
+> **Zero Dependencies**: `scripts/agy_call.js`(Node.js 내장 `fetch`)와 `scripts/agy_call.py`(Python 표준 라이브러리 `urllib.request`)는 **외부 패키지 의존성이 전혀 없습니다**. `npm install`이나 `pip install` 과정이 필요하지 않습니다.
 
 ---
 
 ## 📦 설치 가이드
 
-### 추천: `npx skills` (skills.sh)를 통한 설치
+### 추천: `npx skills`를 통한 원클릭 설치
 
-저장소를 직접 clone할 필요 없이, 공식 [skills](https://skills.sh/) CLI를 통해 한 줄로 즉시 설치할 수 있습니다:
+오픈 에이전트 스킬 표준 도구인 [skills](https://skills.sh/)를 사용하면 직접 clone할 필요 없이 가장 간편하게 설치할 수 있습니다:
 
 ```bash
-# Claude Code에 글로벌로 설치
+# Claude Code에 글로벌로 설치 (검증 완료)
 npx skills add xyrz47-spec/just-code-claude -g -a claude-code
 
-# 또는 시스템에 감지된 모든 AI 에이전트에 글로벌 설치
-npx skills add xyrz47-spec/just-code-claude -g
-
-# 현재 프로젝트에만 설치
-npx skills add xyrz47-spec/just-code-claude
+# 또는 현재 프로젝트에만 로컬로 설치
+npx skills add xyrz47-spec/just-code-claude -a claude-code
 ```
 
 ---
@@ -124,20 +125,16 @@ cd just-code-claude
 bash install.sh
 ```
 
+설치 스크립트가 해당 스킬 파일을 `~/.claude/skills/just-code-claude/` 디렉터리에 복사합니다.
+
 ---
 
-## 🔌 설정 및 백엔드
+## 🔌 설정 및 실행 백엔드
 
-`just-code-claude`는 환경에 따라 자동으로 최적의 백엔드를 감지하는 **듀얼 백엔드**를 지원합니다:
+보조 CLI 스크립트는 두 가지 백엔드를 지원하며 환경에 따라 자동 감지합니다:
 
-### 백엔드 1: Antigravity CLI (`agy`)
-시스템에 Antigravity CLI가 설치되어 있는 경우:
-- 자동으로 감지되어 실행됩니다.
-- API 키 설정이 필요 없습니다.
-- 기본적으로 `--model gemini-3.8-flash-high`를 사용합니다 (필요 시 `gemini-4-argon-high` 지정 가능).
-
-### 백엔드 2: Google Gemini 공식 REST API
-직접 클라우드 API를 호출하거나 `agy` CLI가 없는 CI/CD 환경에서 실행할 경우:
+### 백엔드 1: Google Gemini 공식 REST API (범용 표준)
+일반 개발자 및 CI/CD 환경에서 권장되는 표준 방식입니다:
 1. [Google AI Studio](https://aistudio.google.com/)에서 API 키를 발급받습니다.
 2. 환경변수를 등록합니다:
    ```bash
@@ -147,8 +144,13 @@ bash install.sh
    # Windows PowerShell
    $env:GEMINI_API_KEY="your-api-key-here"
    ```
-3. 또는 CLI 실행 시 직접 전달할 수도 있습니다: `--api-key "your-key"`.
-4. 기본 모델로 `gemini-2.5-flash`를 사용합니다 (`-m` 플래그로 변경 가능).
+3. 기본 모델: `gemini-2.5-flash` (`-m` 플래그로 `gemini-2.0-flash` 등 변경 가능).
+
+### 백엔드 2: Antigravity CLI (`agy`)
+Antigravity 개발 환경을 사용하는 개발자를 위한 방식입니다:
+- 시스템의 `PATH` 또는 기본 설치 경로에 `agy`가 있으면 자동 감지됩니다.
+- 로컬 Antigravity CLI 인증을 그대로 사용합니다.
+- 기본 모델: `gemini-3.8-flash-high` (Antigravity 환경 모델).
 
 ---
 
@@ -162,7 +164,7 @@ Claude Code 대화창에서 명령어를 입력합니다:
 ```
 또는 자연어로 지시합니다:
 ```text
-just-code-claude 모드로 작업해줘. 코드 아키텍처와 로직은 네가 짜고, 모든 텍스트 산출물과 UI 카피는 agy를 호출해서 작성해.
+just-code-claude 모드로 작업해줘. 코드 아키텍처와 로직은 네가 짜고, 모든 텍스트 산출물과 UI 카피는 Gemini를 호출해서 작성해.
 ```
 
 ---
@@ -170,7 +172,7 @@ just-code-claude 모드로 작업해줘. 코드 아키텍처와 로직은 네가
 ### 2. 코드 내 문자열 치환 워크플로우
 
 #### 1단계: Claude가 플레이스홀더를 포함해 코드 작성
-Claude는 로직과 JSX/HTML 구조를 작성하고, 사용자에게 노출될 텍스트 자리에 `__AGY__("지시사항"[, "목표언어"])` 또는 `__GEMINI__("지시사항"[, "목표언어"])` 형태의 플레이스홀더를 배치합니다:
+Claude는 컴포넌트 구조와 로직을 작성하고, 텍스트 자리에 `__AGY__("지시사항"[, "목표언어"])` 또는 `__GEMINI__("지시사항"[, "목표언어"])` 형태의 플레이스홀더를 배치합니다:
 
 ```tsx
 // src/components/SessionExpiryBanner.tsx
@@ -194,10 +196,10 @@ Claude가 터미널에서 번들된 CLI 스크립트를 실행합니다:
 ```bash
 node scripts/agy_call.js --replace-in-file src/components/SessionExpiryBanner.tsx
 ```
-*(Python 사용 환경: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
+*(Python 사용 시: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
 
 #### 3단계: 완성된 프로덕션 코드
-모든 플레이스홀더가 Gemini가 생성한 정제된 텍스트 리터럴로 즉시 치환됩니다:
+모든 플레이스홀더가 Gemini가 생성한 정제된 텍스트로 즉시 치환됩니다:
 ```tsx
 // src/components/SessionExpiryBanner.tsx
 import React from 'react';
@@ -219,17 +221,14 @@ export function SessionExpiryBanner({ onExtend }) {
 
 ### 3. 문서 및 마크다운 생성 워크플로우
 
-모든 기술 문서, README, 사용자 가이드 작성을 Gemini에게 위임합니다:
+기술 문서, README, 사용자 가이드 작성을 Gemini에게 위임합니다:
 
 ```bash
-# Antigravity CLI 사용 (기본 자동 감지)
-node scripts/agy_call.js -p "우리 REST 엔드포인트에 대한 시작 가이드 문서를 한국어로 작성해줘" -o docs/API_GUIDE.md
+# Gemini REST API 사용
+node scripts/agy_call.js -p "우리 REST 엔드포인트에 대한 시작 가이드 문서를 한국어로 작성해줘" -b api -o docs/API_GUIDE.md
 
-# Gemini API 모드 명시적 사용
-node scripts/agy_call.js -p "시스템 아키텍처 개요 문서 작성해줘" -b api -o ARCHITECTURE.md
-
-# agy CLI 직접 호출
-agy -p "프로젝트 README 개요 작성해줘" --model gemini-3.8-flash-high --dangerously-skip-permissions > README.md
+# agy CLI 사용 (설치되어 있는 경우)
+node scripts/agy_call.js -p "시스템 아키텍처 개요 문서 작성해줘" -b agy -o ARCHITECTURE.md
 ```
 
 ---
@@ -283,15 +282,15 @@ Usage: node scripts/agy_call.js [options]
    or: python scripts/agy_call.py [options]
 
 듀얼 백엔드 실행:
-  1. Antigravity CLI (agy): 설치되어 있으면 자동 감지되어 우선 실행.
-  2. Direct Gemini API: GEMINI_API_KEY 환경변수가 설정되어 있거나 agy를 찾을 수 없을 때 자동 실행.
+  1. Direct Gemini API: GEMINI_API_KEY 환경변수가 설정되어 있거나 -b api 지정 시 사용.
+  2. Antigravity CLI (agy): 로컬 머신에 agy가 설치되어 있을 때 자동 감지되어 사용.
 
 옵션:
   -p, --prompt <text>          생성할 프롬프트 텍스트
   -f, --file <path>            파일에서 프롬프트/문맥 읽기
   -o, --output <path>          생성된 결과를 지정된 파일로 저장
-  -b, --backend <mode>         백엔드 엔진 선택: 'auto' (기본값), 'agy', 또는 'api'
-  -m, --model <name>           모델 지정 (agy 기본값: gemini-3.8-flash-high, api 기본값: gemini-2.5-flash)
+  -b, --backend <mode>         백엔드 엔진 선택: 'auto' (기본값), 'api', 또는 'agy'
+  -m, --model <name>           모델 지정 (api 기본값: gemini-2.5-flash, agy 기본값: gemini-3.8-flash-high)
   --api-key <key>              Google Gemini API 키 (또는 GEMINI_API_KEY 환경변수)
   -l, --lang <language>        출력 대상 언어 (예: English, Korean, Japanese, Spanish)
   -s, --system <text>          프롬프트 앞에 붙일 시스템 지시문
@@ -321,12 +320,17 @@ node scripts/test_skill.js
 
 ```
 just-code-claude/
-├── SKILL.md                 # Claude Code 전용 스킬 정의 및 엄격한 분업 규칙 가이드
+├── SKILL.md                 # Claude Code 전용 스킬 정의 및 분업 지침
 ├── README.md                # 영문 공식 문서
 ├── README.ko.md             # 한국어 공식 문서
+├── README.ja.md             # 일본어 공식 문서
+├── README.zh-CN.md          # 중국어(간체) 공식 문서
+├── README.es.md             # 스페인어 공식 문서
+├── README.fr.md             # 프랑스어 공식 문서
+├── README.de.md             # 독일어 공식 문서
 ├── package.json             # NPM 패키지 설정 파일
-├── install.ps1              # Windows PowerShell 원클릭 설치 스크립트
-├── install.sh               # Linux/macOS 원클릭 설치 스크립트
+├── install.ps1              # Windows PowerShell 설치 스크립트
+├── install.sh               # Linux/macOS 설치 스크립트
 ├── scripts/
 │   ├── agy_call.js          # Node.js 듀얼 백엔드 러너 (외부 의존성 0개)
 │   ├── agy_call.py          # Python 듀얼 백엔드 러너 (표준 라이브러리 전용)

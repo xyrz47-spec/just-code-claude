@@ -10,26 +10,26 @@
   <a href="README.de.md"><b>Deutsch</b></a>
 </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-7C3AED.svg)](https://anthropic.com)
-[![Dual Backend](https://img.shields.io/badge/Backend-Antigravity%20CLI%20%7C%20Gemini%20API-4285F4.svg)](https://google.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Target: Claude Code](https://img.shields.io/badge/Agent-Claude%20Code-7C3AED.svg)](https://github.com/xyrz47-spec/just-code-claude)
+[![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **“Claude 负责写代码，Gemini 负责写文本。”**  
-> 专为 **Claude Code** 打造的严格分工技能：Claude 专注于代码架构、算法与逻辑编写，而所有自然语言文本产出物（文档、README、提交信息以及代码中引号 `""` 包含的字符串字面量）均通过 **Antigravity CLI (`agy`)** 或 **Google Gemini 官方 REST API** 委托给 **Google Gemini** 全权生成。
+> 面向 Claude Code 的开源**研发分工技能**：Claude 专注于系统架构与代码逻辑实现，而所有自然语言文本产出物（技术文档、README、提交信息以及代码中引号 `""` 包含的字符串字面量）均通过 **Google Gemini REST API** 或 **Antigravity CLI (`agy`)** 委托给 **Google Gemini** 生成。
 
 ---
 
 ## 📑 目录
 
-- [为什么选择 just-code-claude？](#-为什么选择-just-code-claude)
+- [立项初衷与设计理念](#-立项初衷与设计理念)
 - [运行机制](#-运行机制)
 - [环境准备](#-环境准备)
 - [安装指南](#-安装指南)
-  - [方式 1: 安装为全局 Claude Code 技能（推荐）](#方式-1-安装为全局-claude-code-技能推荐)
-  - [方式 2: 安装为项目级技能](#方式-2-安装为项目级技能)
+  - [推荐方式: 通过 `npx skills` 一行命令安装](#推荐方式-通过-npx-skills-一行命令安装)
+  - [备选方式: 通过 Git Clone 安装](#备选方式-通过-git-clone-安装)
 - [配置与后端引擎](#-配置与后端引擎)
-  - [后端 1: Antigravity CLI (`agy`)](#后端-1-antigravity-cli-agy)
-  - [后端 2: Google Gemini 官方 REST API](#后端-2-google-gemini-官方-rest-api)
+  - [后端 1: Google Gemini 官方 REST API (通用标准)](#后端-1-google-gemini-官方-rest-api-通用标准)
+  - [后端 2: Antigravity CLI (`agy`)](#后端-2-antigravity-cli-agy)
 - [使用方法与工作流](#-使用方法与工作流)
   - [1. 在 Claude Code 中激活技能](#1-在-claude-code-中激活技能)
   - [2. 代码内字符串替换工作流](#2-代码内字符串替换工作流)
@@ -43,11 +43,13 @@
 
 ---
 
-## 🌟 为什么选择 `just-code-claude`？
+## 🌟 立项初衷与设计理念
 
-Claude 是目前最出色的编程 AI 之一，在软件架构设计、复杂状态管理、AST 操作以及类型系统构建方面表现极其优异。然而，在撰写自然流畅、亲切友好的用户文案、本土化提示语、细腻的错误通知和技术文档时，许多开发者更倾向于使用 **Google Gemini**。
+在现代 AI 辅助研发流程中，不同的大语言模型具备各自的特长：
+- **Claude**：在复杂软件架构搭建、AST 语法树重构、TypeScript 类型系统以及算法推导方面极为出色。
+- **Google Gemini**：在跨语种表达自然度、用户端友好提示语撰写以及快速文本生成方面表现突出。
 
-`just-code-claude` 将两者的优势结合，建立起全自动化的协同分工机制：
+`just-code-claude` 将二者的特长进行结合，提供自动化的协同分工工作流：
 
 ```
                        ┌──────────────────────────────┐
@@ -59,7 +61,7 @@ Claude 是目前最出色的编程 AI 之一，在软件架构设计、复杂状
           [ 代码逻辑与架构设计 ]                   [ 自然语言与文本撰写 ]
                    │                                     │
               Claude Code                           Google Gemini
-                   │                       (agy CLI 或 Gemini REST API)
+                   │                       (Gemini API 或 agy CLI)
                    ▼                                     ▼
         函数、类型、状态、AST                   官方文档、UI 按钮文案、
       及占位符 (__AGY__)                       错误提示与交互通知
@@ -71,39 +73,38 @@ Claude 是目前最出色的编程 AI 之一，在软件架构设计、复杂状
                        └──────────────────────────────┘
 ```
 
-- **Claude 的职责领域**：系统架构、逻辑实现、算法设计、状态管理、类型声明、测试用例编写、Bug 修复及脚本调度编排。
-- **Gemini 的职责领域**：技术文档编写、README、发布说明、Git 提交信息以及所有供人类阅读的引号（`""`, `''`）内文本字符串字面量。
+- **Claude 的分工范畴**：系统架构、核心逻辑、算法实现、状态管理、类型声明、测试用例编写、Bug 修复及工具脚本调用。
+- **Gemini 的分工范畴**：技术文档编写、README、发布日志、Git 提交说明以及所有供人类阅读的代码内字符串字面量（`""`, `''`）。
+
+> **关于约束机制的说明**：本项目不是操作系统级或编译器级的沙盒限制，而是通过 Claude Code 技能规范（`SKILL.md`）向 AI 智能体提供明确分工指南的**提示词工作流指令**。
 
 ---
 
 ## ⚙️ 环境准备
 
-运行文本生成脚本需要以下运行环境：
+运行文本生成脚本需要：
 
 - **运行环境**：[Node.js](https://nodejs.org)（推荐 v18+）或 [Python](https://python.org)（v3.8+）。
-- **执行后端**（二选一即可）：
-  1. **Antigravity CLI (`agy`)**：如果已在本地安装并完成鉴权，开箱即用，无需配置任何 API Key。
-  2. **Google Gemini API Key**：在没有 `agy` 的环境中，只需配置在 [Google AI Studio](https://aistudio.google.com/) 获取的 `GEMINI_API_KEY`（或 `GOOGLE_API_KEY`）环境变量即可。
+- **执行引擎**（任选其一）：
+  1. **Google Gemini API Key (通用标准)**：在 [Google AI Studio](https://aistudio.google.com/) 免费申请 API Key 并配置为 `GEMINI_API_KEY` 环境变量。
+  2. **Antigravity CLI (`agy`)**：如果你在 Antigravity 环境下工作且已完成 `agy` CLI 鉴权，工具将自动检测并调用，无需额外配置 Key。
 
-> **注意**：`scripts/agy_call.js` 与 `scripts/agy_call.py` **没有任何外部包依赖（Zero Dependencies）**。分别使用 Node.js 原生内置的 `fetch` 和 Python 内置的标准库 `urllib.request`，无需执行 `npm install` 或 `pip install`。
+> **Zero Dependencies**：`scripts/agy_call.js`（Node.js 原生 `fetch`）与 `scripts/agy_call.py`（Python 原生 `urllib.request`）**无任何第三方依赖**，无需运行 `npm install` 或 `pip install`。
 
 ---
 
 ## 📦 安装指南
 
-### 推荐方式: 通过 `npx skills` (skills.sh) 安装
+### 推荐方式: 通过 `npx skills` 一行命令安装
 
-无需手动 clone 仓库，使用官方 [skills](https://skills.sh/) CLI 即可一行命令自动安装：
+使用开源 Agent 技能标准工具 [skills](https://skills.sh/) 即可快速安装，无需手动 clone：
 
 ```bash
-# 全局安装至 Claude Code
+# 全局安装至 Claude Code (已实测验证)
 npx skills add xyrz47-spec/just-code-claude -g -a claude-code
 
-# 或为系统识别的所有 AI Agent 全局安装
-npx skills add xyrz47-spec/just-code-claude -g
-
-# 仅安装至当前项目目录
-npx skills add xyrz47-spec/just-code-claude
+# 或仅为当前项目安装
+npx skills add xyrz47-spec/just-code-claude -a claude-code
 ```
 
 ---
@@ -124,21 +125,17 @@ cd just-code-claude
 bash install.sh
 ```
 
+脚本会自动将技能部署至 `~/.claude/skills/just-code-claude/` 目录。
+
 ---
 
 ## 🔌 配置与后端引擎
 
-`just-code-claude` 支持无缝的 **双后端引擎**，并能根据当前环境自动检测选择：
+辅助命令行工具支持两种后端引擎，并具备自动环境检测能力：
 
-### 后端 1: Antigravity CLI (`agy`)
-当本地已安装 Antigravity CLI 时：
-- 自动识别并优先调用。
-- 无需配置 API Key。
-- 默认采用 `--model gemini-3.8-flash-high`（支持按需指定 `gemini-4-argon-high`）。
-
-### 后端 2: Google Gemini 官方 REST API
-适用于直接调用云端 API 或在没有 `agy` 的 CI/CD 自动化流水线中运行：
-1. 从 [Google AI Studio](https://aistudio.google.com/) 获取 API Key。
+### 后端 1: Google Gemini 官方 REST API (通用标准)
+绝大多数开发者与 CI/CD 流水线的推荐模式：
+1. 在 [Google AI Studio](https://aistudio.google.com/) 获取 API Key。
 2. 配置环境变量：
    ```bash
    # Linux / macOS
@@ -147,8 +144,13 @@ bash install.sh
    # Windows PowerShell
    $env:GEMINI_API_KEY="your-api-key-here"
    ```
-3. 亦可在运行命令行时直接传入参数：`--api-key "your-key"`。
-4. 默认采用 `gemini-2.5-flash` 模型（可通过 `-m` 参数自定义）。
+3. 默认模型：`gemini-2.5-flash`（可通过 `-m` 自定义，如 `gemini-2.0-flash`）。
+
+### 后端 2: Antigravity CLI (`agy`)
+适用于 Antigravity 开发环境用户：
+- 检测到 `PATH` 或默认安装路径中的 `agy` 时自动生效。
+- 直接继承本地 Antigravity 登录鉴权。
+- 默认模型：`gemini-3.8-flash-high`（Antigravity 环境模型）。
 
 ---
 
@@ -156,13 +158,13 @@ bash install.sh
 
 ### 1. 在 Claude Code 中激活技能
 
-在 Claude Code 交互对话框中输入命令：
+在 Claude Code 中输入命令：
 ```text
 /just-code-claude
 ```
-或直接使用自然语言提示：
+或直接使用自然语言指令：
 ```text
-请切换至 just-code-claude 模式工作。你负责编写代码架构与逻辑，所有文本产出和 UI 文案请调用 agy 委托 Gemini 生成。
+请切换至 just-code-claude 模式工作。你负责编写代码架构与逻辑，所有文本产出和 UI 文案请调用 Gemini 委托生成。
 ```
 
 ---
@@ -190,11 +192,11 @@ export function SessionExpiryBanner({ onExtend }) {
 ```
 
 #### 步骤 B: 运行自动替换工具
-Claude 在终端中运行内置的 CLI 脚本：
+Claude 在终端中运行内置 CLI 工具：
 ```bash
 node scripts/agy_call.js --replace-in-file src/components/SessionExpiryBanner.tsx
 ```
-*(Python 环境下可执行：`python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
+*(Python 环境：`python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
 
 #### 步骤 C: 最终生成的生产代码
 文件内的所有占位符将被 Gemini 生成的高质量自然文本就地替换：
@@ -219,17 +221,14 @@ export function SessionExpiryBanner({ onExtend }) {
 
 ### 3. 文档与 Markdown 生成工作流
 
-将所有技术文档、项目说明以及用户操作手册委托给 Gemini 编写：
+将技术文档、项目说明以及用户操作手册委托给 Gemini 编写：
 
 ```bash
-# 使用 Antigravity CLI（默认自动检测）
-node scripts/agy_call.js -p "请为我们的 REST API 接口撰写一份中文快速入门指南" -o docs/API_GUIDE.md
+# 使用 Gemini REST API
+node scripts/agy_call.js -p "请为我们的 REST API 接口撰写一份中文快速入门指南" -b api -o docs/API_GUIDE.md
 
-# 显式指定使用 Gemini API 模式
-node scripts/agy_call.js -p "撰写系统整体架构设计概览文档" -b api -o ARCHITECTURE.md
-
-# 直接调用 agy CLI
-agy -p "撰写项目 README 核心概览" --model gemini-3.8-flash-high --dangerously-skip-permissions > README.md
+# 使用 agy CLI（如已安装）
+node scripts/agy_call.js -p "撰写系统整体架构设计概览文档" -b agy -o ARCHITECTURE.md
 ```
 
 ---
@@ -283,15 +282,15 @@ Usage: node scripts/agy_call.js [options]
    or: python scripts/agy_call.py [options]
 
 双引擎后端运行机制:
-  1. Antigravity CLI (agy): 本地已安装时自动检测并优先运行。
-  2. Direct Gemini API: 设置了 GEMINI_API_KEY 环境变量或未检测到 agy 时自动切换使用。
+  1. Direct Gemini API: 设置了 GEMINI_API_KEY 环境变量或传入 -b api 时调用。
+  2. Antigravity CLI (agy): 本地环境检测到 agy 时自动生效。
 
 选项参数:
   -p, --prompt <text>          要生成内容的提示词文本
   -f, --file <path>            从指定文件中读取提示词或上下文内容
   -o, --output <path>          将生成的结果直接写入保存至指定文件
-  -b, --backend <mode>         指定执行引擎: 'auto' (默认值), 'agy', 或 'api'
-  -m, --model <name>           指定模型名称 (agy 默认: gemini-3.8-flash-high, api 默认: gemini-2.5-flash)
+  -b, --backend <mode>         指定执行引擎: 'auto' (默认值), 'api', 或 'agy'
+  -m, --model <name>           指定模型名称 (api 默认: gemini-2.5-flash, agy 默认: gemini-3.8-flash-high)
   --api-key <key>              Google Gemini API Key (亦可使用 GEMINI_API_KEY 环境变量)
   -l, --lang <language>        生成的目标语言 (如 English, Korean, Japanese, Chinese, Spanish)
   -s, --system <text>          预先附加在提示词前的系统角色指令
@@ -299,15 +298,15 @@ Usage: node scripts/agy_call.js [options]
   --replace-in-file <path>     扫描代码文件中的 __AGY__("...") 或 __GEMINI__("...") 占位符
                                并直接就地替换为生成的成品文本
   --json-strings <path>        读取键值描述的 JSON 规范文件并批量生成文案
-  --raw                        仅输出纯文本结果，不附加额外格式化修饰
-  -h, --help                   显示帮助文档
+  --raw                        仅输出纯文本结果，不附加额外修饰
+  -h, --help                   显示帮助信息
 ```
 
 ---
 
 ## 🧪 验证与测试
 
-在本地环境中运行自动化自测脚本，验证文本生成与代码占位符替换机制是否正常：
+运行自动化自测脚本，验证文本生成与代码占位符替换机制是否正常：
 
 ```bash
 npm test
@@ -321,14 +320,17 @@ node scripts/test_skill.js
 
 ```
 just-code-claude/
-├── SKILL.md                 # Claude Code 专用技能定义与严格分工指引
+├── SKILL.md                 # Claude Code 专用技能定义与分工指引
 ├── README.md                # 英文官方主文档
 ├── README.ko.md             # 韩文官方文档
 ├── README.ja.md             # 日文官方文档
 ├── README.zh-CN.md          # 简体中文官方文档
+├── README.es.md             # 西班牙文官方文档
+├── README.fr.md             # 法文官方文档
+├── README.de.md             # 德文官方文档
 ├── package.json             # NPM 模块描述文件
-├── install.ps1              # Windows PowerShell 一键安装脚本
-├── install.sh               # Linux/macOS 一键安装脚本
+├── install.ps1              # Windows PowerShell 安装脚本
+├── install.sh               # Linux/macOS 安装脚本
 ├── scripts/
 │   ├── agy_call.js          # Node.js 双引擎执行器 (无任何外部依赖)
 │   ├── agy_call.py          # Python 双引擎执行器 (仅使用原生标准库)
@@ -337,7 +339,7 @@ just-code-claude/
 │   ├── before_code.tsx      # 包含 __AGY__ 占位符的代码示例
 │   └── ui_spec.json         # 多语言字典生成规范示例
 └── templates/
-    └── prompt_templates.md  # UX 文案与技术文档撰写提示词模板
+    └── prompt_templates.md  # 提示词模板
 ```
 
 ---

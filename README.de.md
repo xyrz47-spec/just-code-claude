@@ -10,26 +10,26 @@
   <a href="README.de.md"><b>Deutsch</b></a>
 </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-7C3AED.svg)](https://anthropic.com)
-[![Dual Backend](https://img.shields.io/badge/Backend-Antigravity%20CLI%20%7C%20Gemini%20API-4285F4.svg)](https://google.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Target: Claude Code](https://img.shields.io/badge/Agent-Claude%20Code-7C3AED.svg)](https://github.com/xyrz47-spec/just-code-claude)
+[![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **„Claude schreibt den Code. Gemini schreibt die Texte.“**  
-> Ein dedizierter **Claude Code Skill**, der eine strikte Arbeitsteilung erzwingt: Claude übernimmt Architektur, Algorithmen und Codelogik, während 100 % der Texterstellung in natürlicher Sprache (Dokumentation, READMEs, Commit-Nachrichten und Zeichenketten in Anführungszeichen `""` im Code) an **Google Gemini** über das **Antigravity CLI (`agy`)** oder die **direkte Google Gemini REST-API** delegiert werden.
+> Ein Open-Source **Claude Code Skill**, der eine strukturierte Arbeitsteilung vorsieht: Claude konzentriert sich auf Softwarearchitektur und Codelogik, während die Erstellung von Texten in natürlicher Sprache (Dokumentation, READMEs, Commit-Nachrichten und Stringliterale in Anführungszeichen `""`) an **Google Gemini** über die **Google Gemini REST-API** oder das **Antigravity CLI (`agy`)** delegiert wird.
 
 ---
 
 ## 📑 Inhaltsverzeichnis
 
-- [Warum just-code-claude?](#-warum-just-code-claude)
+- [Motivation & Designphilosophie](#-motivation--designphilosophie)
 - [Funktionsweise](#-funktionsweise)
 - [Voraussetzungen](#-voraussetzungen)
 - [Installationsanleitung](#-installationsanleitung)
-  - [Methode 1: Globaler Claude Code Skill (Empfohlen)](#methode-1-globaler-claude-code-skill-empfohlen)
-  - [Methode 2: Skill auf Projektebene](#methode-2-skill-auf-projektebene)
-- [Konfiguration & Backends](#-konfiguration--backends)
-  - [Backend 1: Antigravity CLI (`agy`)](#backend-1-antigravity-cli-agy)
-  - [Backend 2: Direkte Google Gemini REST-API](#backend-2-direkte-google-gemini-rest-api)
+  - [Empfohlen: Installation über `npx skills`](#empfohlen-installation-über-npx-skills-skillssh)
+  - [Alternative: Installation über Git Clone](#alternative-installation-über-git-clone)
+- [Konfiguration & Ausführungs-Backends](#-konfiguration--ausführungs-backends)
+  - [Backend 1: Direkte Google Gemini REST-API (Universeller Standard)](#backend-1-direkte-google-gemini-rest-api-universeller-standard)
+  - [Backend 2: Antigravity CLI (`agy`)](#backend-2-antigravity-cli-agy)
 - [Nutzung & Workflows](#-nutzung--workflows)
   - [1. Skill in Claude Code aktivieren](#1-skill-in-claude-code-aktivieren)
   - [2. Workflow: String-Ersetzung im Code](#2-workflow-string-ersetzung-im-code)
@@ -43,11 +43,13 @@
 
 ---
 
-## 🌟 Warum `just-code-claude`?
+## 🌟 Motivation & Designphilosophie
 
-Claude ist eines der leistungsfähigsten KI-Modelle für Entwickler – herausragend in Softwarearchitektur, komplexem Zustandsmanagement, AST-Transformationen und Typsystemen. Viele Entwickler bevorzugen jedoch **Google Gemini** für flüssige, benutzerfreundliche Texte, lokalisierte Formulierungen, durchdachte Fehlermeldungen und technische Dokumentationen.
+In modernen KI-gestützten Entwicklungsworkflows verfügen verschiedene Modelle über spezifische Stärken:
+- **Claude**: Herausragend in komplexer Softwarearchitektur, AST-Manipulation, TypeScript-Typsystemen und algorithmischer Logik.
+- **Google Gemini**: Hohe sprachliche Natürlichkeit bei mehrsprachigen Texten, benutzerfreundliche Formulierungen und schnelle Generierungszeiten.
 
-`just-code-claude` formalisiert diese Stärken in einem automatisierten Workflow:
+`just-code-claude` verbindet diese Eigenschaften in einem automatisierten Workflow:
 
 ```
                        ┌──────────────────────────────┐
@@ -59,7 +61,7 @@ Claude ist eines der leistungsfähigsten KI-Modelle für Entwickler – herausra
         [ Codelogik & Architektur ]            [ Natürliche Sprache & Texte ]
                    │                                     │
               Claude Code                           Google Gemini
-                   │                       (über agy CLI oder Gemini API)
+                   │                         (Gemini API oder agy CLI)
                    ▼                                     ▼
        Funktionen, Typen, State, AST            Dokumentation, UI-Schaltflächen,
        & Platzhalter (__AGY__)                  Fehlermeldungen & Hinweistexte
@@ -71,21 +73,23 @@ Claude ist eines der leistungsfähigsten KI-Modelle für Entwickler – herausra
                        └──────────────────────────────┘
 ```
 
-- **Claudes Bereich**: Systemarchitektur, Logik, Algorithmen, State Management, Typisierung, Tests, Fehlerbehebungen und Skript-Orchestrierung.
-- **Geminis Bereich**: Technische Dokumentation, READMEs, Release Notes, Commit-Nachrichten und jedes für Menschen sichtbare Textliteral in Anführungszeichen (`""` oder `''`).
+- **Claudes Bereich**: Systemarchitektur, Logik, Algorithmen, State Management, Typisierung, Tests, Fehlerbehebung und Skriptausführung.
+- **Geminis Bereich**: Technische Dokumentation, READMEs, Release Notes, Commit-Nachrichten und vom Menschen gelesene Stringliterale (`""` oder `''`).
+
+> **Hinweis zur Durchsetzung**: Dieses Projekt fungiert nicht als Betriebssystem- oder Compiler-Sandbox, sondern als eine **prompt-basierte Workflow-Direktive** (`SKILL.md`), die Claude Code systematisch zu dieser Aufgabenteilung anleitet.
 
 ---
 
 ## ⚙️ Voraussetzungen
 
-Zur Ausführung der Generierungsskripte wird Folgendes benötigt:
+Zur Ausführung der Generierungsskripte:
 
-- **Laufzeitumgebung**: [Node.js](https://nodejs.org) (v18+ empfohlen) oder [Python](https://python.org) (v3.8+).
+- **Laufzeitumgebung**: [Node.js](https://nodejs.org) (v18+) oder [Python](https://python.org) (v3.8+).
 - **Ausführungs-Backend** (wähle eine Option):
-  1. **Antigravity CLI (`agy`)**: Falls auf deinem System installiert und authentifiziert, funktioniert es sofort ohne zusätzliche API-Keys.
-  2. **Google Gemini API-Key**: In Umgebungen ohne `agy` muss lediglich die Umgebungsvariable `GEMINI_API_KEY` (oder `GOOGLE_API_KEY`) aus dem [Google AI Studio](https://aistudio.google.com/) gesetzt werden.
+  1. **Google Gemini API-Key (Universeller Standard)**: Kostenlosen API-Key im [Google AI Studio](https://aistudio.google.com/) erstellen und als Umgebungsvariable `GEMINI_API_KEY` setzen.
+  2. **Antigravity CLI (`agy`)**: Falls in einer Antigravity-Umgebung mit vorkonfiguriertem `agy` CLI gearbeitet wird, wird dieses ohne zusätzlichen API-Key automatisch verwendet.
 
-> **Hinweis**: Sowohl `scripts/agy_call.js` als auch `scripts/agy_call.py` besitzen **keinerlei externe Abhängigkeiten (Zero Dependencies)**. Sie nutzen das native `fetch` von Node.js bzw. die Standardbibliothek `urllib.request` in Python. Kein `npm install` oder `pip install` erforderlich!
+> **Zero Dependencies**: `scripts/agy_call.js` (natives `fetch`) und `scripts/agy_call.py` (`urllib.request`) haben **keine externen Abhängigkeiten**. Es ist kein `npm install` oder `pip install` nötig.
 
 ---
 
@@ -93,37 +97,46 @@ Zur Ausführung der Generierungsskripte wird Folgendes benötigt:
 
 ### Empfohlen: Installation über `npx skills` (skills.sh)
 
-Mit dem offiziellen CLI-Tool von [skills](https://skills.sh/) kannst du `just-code-claude` sofort ohne manuelles Klonen installieren:
+Über das offizielle Tool [skills](https://skills.sh/) lässt sich der Skill ohne manuelles Klonen installieren:
 
 ```bash
-# Global für Claude Code installieren
+# Global für Claude Code installieren (Verifiziert)
 npx skills add xyrz47-spec/just-code-claude -g -a claude-code
 
-# Oder global für alle erkannten KI-Agenten installieren
-npx skills add xyrz47-spec/just-code-claude -g
-
 # Oder nur im aktuellen Projekt installieren
-npx skills add xyrz47-spec/just-code-claude
+npx skills add xyrz47-spec/just-code-claude -a claude-code
 ```
 
 ---
 
 ### Alternative: Installation über Git Clone
 
-## 🔌 Konfiguration & Backends
+#### Unter Windows (PowerShell):
+```powershell
+git clone https://github.com/xyrz47-spec/just-code-claude.git
+cd just-code-claude
+.\install.ps1
+```
 
-`just-code-claude` bietet nahtlose **Dual-Backend-Unterstützung** mit automatischer Erkennung:
+#### Unter Linux / macOS (Bash):
+```bash
+git clone https://github.com/xyrz47-spec/just-code-claude.git
+cd just-code-claude
+bash install.sh
+```
 
-### Backend 1: Antigravity CLI (`agy`)
-Wenn das Antigravity CLI installiert ist:
-- Wird es automatisch erkannt und bevorzugt ausgeführt.
-- Keine API-Key-Konfiguration notwendig.
-- Standardmäßig wird `--model gemini-3.8-flash-high` verwendet (kann auf Wunsch auf `gemini-4-argon-high` geändert werden).
+Das Installationsskript kopiert die Skill-Dateien direkt nach `~/.claude/skills/just-code-claude/`.
 
-### Backend 2: Direkte Google Gemini REST-API
-Ideal für direkte Cloud-Aufrufe oder in CI/CD-Pipelines ohne `agy`:
-1. Hole einen API-Key im [Google AI Studio](https://aistudio.google.com/).
-2. Setze die Umgebungsvariable:
+---
+
+## 🔌 Konfiguration & Ausführungs-Backends
+
+Das CLI-Hilfswerkzeug unterstützt zwei Backends mit automatischer Erkennung:
+
+### Backend 1: Direkte Google Gemini REST-API (Universeller Standard)
+Für die meisten Entwickler und CI/CD-Pipelines empfohlen:
+1. API-Key im [Google AI Studio](https://aistudio.google.com/) erstellen.
+2. Umgebungsvariable setzen:
    ```bash
    # Linux / macOS
    export GEMINI_API_KEY="dein-api-key-hier"
@@ -131,8 +144,13 @@ Ideal für direkte Cloud-Aufrufe oder in CI/CD-Pipelines ohne `agy`:
    # Windows PowerShell
    $env:GEMINI_API_KEY="dein-api-key-hier"
    ```
-3. Alternativ kann der Key direkt beim Aufruf übergeben werden: `--api-key "dein-key"`.
-4. Nutzt standardmäßig `gemini-2.5-flash` (über `-m` anpassbar).
+3. Standardmodell: `gemini-2.5-flash` (über `-m` anpassbar).
+
+### Backend 2: Antigravity CLI (`agy`)
+Für Nutzer in der Antigravity-Entwicklungsumgebung:
+- Wird automatisch verwendet, wenn `agy` im `PATH` vorhanden ist.
+- Verwendet die lokale Antigravity CLI-Authentifizierung.
+- Standardmodell: `gemini-3.8-flash-high` (Antigravity-Umgebungsmodell).
 
 ---
 
@@ -144,9 +162,9 @@ Gib in Claude Code den folgenden Befehl ein:
 ```text
 /just-code-claude
 ```
-Oder verwende eine natürliche Anweisung:
+Oder verwende eine direkte Anweisung:
 ```text
-Aktiviere den just-code-claude Modus. Du übernimmst die Codelogik und Architektur, und rufst agy für alle Textinhalte und UI-Texte auf.
+Aktiviere den just-code-claude Modus. Du erstellst Codelogik und Architektur und delegierst alle Texte und Dokumentationen an Gemini.
 ```
 
 ---
@@ -154,7 +172,7 @@ Aktiviere den just-code-claude Modus. Du übernimmst die Codelogik und Architekt
 ### 2. Workflow: String-Ersetzung im Code
 
 #### Schritt A: Claude schreibt Code mit Platzhaltern
-Claude implementiert die Logik und JSX/HTML-Struktur und platziert sichtbare Texte in `__AGY__("Anweisung"[, "Zielsprache"])` oder `__GEMINI__("Anweisung"[, "Zielsprache"])`:
+Claude implementiert Logik und Komponentenstruktur und platziert Platzhalter: `__AGY__("Anweisung"[, "Zielsprache"])` oder `__GEMINI__("Anweisung"[, "Zielsprache"])`:
 
 ```tsx
 // src/components/SessionExpiryBanner.tsx
@@ -174,14 +192,14 @@ export function SessionExpiryBanner({ onExtend }) {
 ```
 
 #### Schritt B: Automatische Ersetzung ausführen
-Claude führt das mitgelieferte CLI-Skript im Terminal aus:
+Claude führt das mitgelieferte CLI-Tool im Terminal aus:
 ```bash
 node scripts/agy_call.js --replace-in-file src/components/SessionExpiryBanner.tsx
 ```
-*(In Python: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
+*(Oder in Python: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
 
 #### Schritt C: Fertiger Produktionscode
-Alle Platzhalter werden an Ort und Stelle durch die von Gemini erzeugten Texte ersetzt:
+Die Platzhalter werden direkt durch generierten Text ersetzt:
 ```tsx
 // src/components/SessionExpiryBanner.tsx
 import React from 'react';
@@ -190,9 +208,9 @@ export function SessionExpiryBanner({ onExtend }) {
   return (
     <div className="alert-box">
       <h3>"Ihre Sitzung läuft bald ab"</h3>
-      <p>"Zu Ihrer Sicherheit werden Sie in 5 Minuten automatisch abgemeldet. Bitte verlängern Sie Ihre Sitzung, um fortzufahren."</p>
+      <p>"Zu Ihrer Sicherheit werden Sie in 5 Minuten bei Inaktivität automatisch abgemeldet."</p>
       <button onClick={onExtend}>
-        "Sitzung verlängern"
+        "Angemeldet bleiben"
       </button>
     </div>
   );
@@ -203,17 +221,14 @@ export function SessionExpiryBanner({ onExtend }) {
 
 ### 3. Workflow: Erstellung von Dokumentation & Markdown
 
-Delegiere technische Dokumentationen, READMEs und Benutzeranleitungen an Gemini:
+Delegiere technische Dokumentationen oder Anleitungen an Gemini:
 
 ```bash
-# Mit Antigravity CLI (Standard: Automatische Erkennung)
-node scripts/agy_call.js -p "Schreibe einen API-Leitfaden für Entwickler auf Deutsch" -o docs/API_GUIDE.md
+# Über die direkte Gemini REST-API
+node scripts/agy_call.js -p "Schreibe einen API-Leitfaden auf Deutsch für unsere REST-Endpunkte" -b api -o docs/API_GUIDE.md
 
-# Explizite Nutzung der Gemini API
-node scripts/agy_call.js -p "Verfasse eine Übersicht zur Systemarchitektur" -b api -o ARCHITECTURE.md
-
-# Direkter agy CLI-Aufruf
-agy -p "Erstelle eine README-Projektübersicht" --model gemini-3.8-flash-high --dangerously-skip-permissions > README.md
+# Über das agy CLI (falls installiert)
+node scripts/agy_call.js -p "Verfasse eine Übersicht zur Systemarchitektur" -b agy -o ARCHITECTURE.md
 ```
 
 ---
@@ -267,15 +282,15 @@ Verwendung: node scripts/agy_call.js [Optionen]
        oder: python scripts/agy_call.py [Optionen]
 
 Dual-Backend-Ausführung:
-  1. Antigravity CLI (agy): Automatisch erkannt, falls lokal vorhanden.
-  2. Direct Gemini API: Automatisch verwendet, wenn GEMINI_API_KEY gesetzt ist oder agy fehlt.
+  1. Direct Gemini API: Wird verwendet, wenn GEMINI_API_KEY gesetzt ist oder mit -b api.
+  2. Antigravity CLI (agy): Automatisch erkannt, falls lokal vorhanden.
 
 Optionen:
   -p, --prompt <Text>          Direkter Prompt-Text zur Generierung
   -f, --file <Pfad>            Prompt/Kontext aus Datei einlesen
   -o, --output <Pfad>          Ausgabe direkt in Datei schreiben
-  -b, --backend <Modus>        Backend-Engine: 'auto' (Standard), 'agy' oder 'api'
-  -m, --model <Name>           Modellname (Standard für agy: gemini-3.8-flash-high, für api: gemini-2.5-flash)
+  -b, --backend <Modus>        Backend-Engine: 'auto' (Standard), 'api' oder 'agy'
+  -m, --model <Name>           Modellname (Standard für api: gemini-2.5-flash, für agy: gemini-3.8-flash-high)
   --api-key <Key>              Google Gemini API-Key (oder GEMINI_API_KEY Umgebungsvariable)
   -l, --lang <Sprache>         Zielsprache (z. B. English, Korean, Japanese, German, Spanish)
   -s, --system <Text>          Systemanweisungen, die dem Prompt vorangestellt werden
@@ -291,7 +306,7 @@ Optionen:
 
 ## 🧪 Verifizierung & Tests
 
-Teste die Textgenerierung und Platzhalter-Ersetzung auf deinem System:
+Führe den automatisierten Test durch:
 
 ```bash
 npm test
@@ -314,8 +329,8 @@ just-code-claude/
 ├── README.fr.md             # Französische Dokumentation
 ├── README.de.md             # Deutsche Dokumentation
 ├── package.json             # NPM-Paketdatei
-├── install.ps1              # 1-Klick-Installationsskript für Windows (PowerShell)
-├── install.sh               # 1-Klick-Installationsskript für Linux/macOS (Bash)
+├── install.ps1              # Windows PowerShell Installationsskript
+├── install.sh               # Linux/macOS Installationsskript
 ├── scripts/
 │   ├── agy_call.js          # Node.js Dual-Backend Runner (0 externe Abhängigkeiten)
 │   ├── agy_call.py          # Python Dual-Backend Runner (ausschließlich Standardbibliothek)

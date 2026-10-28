@@ -10,26 +10,26 @@
   <a href="README.de.md"><b>Deutsch</b></a>
 </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code Skill](https://img.shields.io/badge/Claude%20Code-Skill-7C3AED.svg)](https://anthropic.com)
-[![Dual Backend](https://img.shields.io/badge/Backend-Antigravity%20CLI%20%7C%20Gemini%20API-4285F4.svg)](https://google.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Target: Claude Code](https://img.shields.io/badge/Agent-Claude%20Code-7C3AED.svg)](https://github.com/xyrz47-spec/just-code-claude)
+[![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **「Claudeはコードを書き、Geminiは文章を書く。」**  
-> 厳格な分業を強制する **Claude Code 専用スキル**: Claudeはコード設計、アルゴリズム、ロジック作成に専념し、すべての自然言語テキスト（ドキュメント、README、コミットメッセージ、コード内の `""` 文字列リテラル）は **Antigravity CLI (`agy`)** または **Google Gemini 公式 REST API** を介して **Google Gemini** が生成します。
+> Claude Code のためのオープンソース**エンジニアリング分業スキル**：Claude はソフトウェアアーキテクチャやコードロジックの記述に専念し、すべての自然言語テキスト（ドキュメント、README、コミットメッセージ、コード内の `""` 文字列リテラル）の生成を **Google Gemini REST API** または **Antigravity CLI (`agy`)** を介して **Google Gemini** に委任します。
 
 ---
 
 ## 📑 目次
 
-- [なぜ just-code-claude なのか？](#-なぜ-just-code-claude-なのか)
+- [開発背景と設計思想](#-開発背景と設計思想)
 - [動作の仕組み](#-動作の仕組み)
 - [事前要件](#-事前要件)
 - [インストールガイド](#-インストールガイド)
-  - [方法 1: グローバル Claude Code スキルとしてインストール（推奨）](#方法-1-グローバル-claude-code-スキルとしてインストール推奨)
-  - [方法 2: プロジェクト単位のスキルとしてインストール](#方法-2-プロジェクト単位のスキルとしてインストール)
-- [設定とバックエンド](#-設定とバックエンド)
-  - [バックエンド 1: Antigravity CLI (`agy`)](#バックエンド-1-antigravity-cli-agy)
-  - [バックエンド 2: Google Gemini 公式 REST API](#バックエンド-2-google-gemini-公式-rest-api)
+  - [推奨: `npx skills` によるワンコマンドインストール](#推奨-npx-skills-によるワンコマンドインストール)
+  - [代替手段: Git Clone によるインストール](#代替手段-git-clone-によるインストール)
+- [設定と実行バックエンド](#-設定と実行バックエンド)
+  - [バックエンド 1: Google Gemini 公式 REST API (汎用標準)](#バックエンド-1-google-gemini-公式-rest-api-汎用標準)
+  - [バックエンド 2: Antigravity CLI (`agy`)](#バックエンド-2-antigravity-cli-agy)
 - [使い方とワークフロー](#-使い方とワークフロー)
   - [1. Claude Code でスキルを有効化](#1-claude-code-でスキルを有効化)
   - [2. コード内文字列置換ワークフロー](#2-コード内文字列置換ワークフロー)
@@ -43,11 +43,13 @@
 
 ---
 
-## 🌟 なぜ `just-code-claude` なのか？
+## 🌟 開発背景と設計思想
 
-Claude は最も優れたプログラミング AI のひとつであり、ソフトウェアアーキテクチャ、複雑な状態管理、AST 操作、型設計に非常に優れています。しかし、多くの開発者は、自然でユーザーフレンドリーなテキスト、ローカライズされた表現、丁寧なエラーメッセージ、公式ドキュメントを作成する際には **Google Gemini** を好みます。
+現代の AI 支援開発において、モデルごとに異なる強みがあります：
+- **Claude**: 複雑なソフトウェアアーキテクチャ、AST 操作、TypeScript 型システム、精密なアルゴリズム設計に優れています。
+- **Google Gemini**: 多言語での自然な表現力、ユーザー向けの丁寧なコピーライティング、高速なテキスト生成に強みを持っています。
 
-`just-code-claude` はこの強みを融合し、自動化された分業体制を確立します:
+`just-code-claude` はこの2つのモデルの特性を組み合わせ、自動化された分業ワークフローを提供します：
 
 ```
                        ┌──────────────────────────────┐
@@ -59,7 +61,7 @@ Claude は最も優れたプログラミング AI のひとつであり、ソフ
           [ コードロジック & 設計 ]                [ 自然言語 & テキスト ]
                    │                                     │
               Claude Code                           Google Gemini
-                   │                       (agy CLI または Gemini REST API)
+                   │                       (Gemini API または agy CLI)
                    ▼                                     ▼
         関数、型、状態、AST                     公式ドキュメント、UI ボタン、
       およびプレースホルダー (__AGY__)            エラー通知メッセージ & コピー
@@ -71,8 +73,10 @@ Claude は最も優れたプログラミング AI のひとつであり、ソフ
                        └──────────────────────────────┘
 ```
 
-- **Claude の領域**: システムアーキテクチャ、ロジック、アルゴリズム、状態管理、型定義、テストコード、バグ修正、およびスクリプトオーケストレーション。
+- **Claude の領域**: システムアーキテクチャ、ロジック、アルゴリズム、状態管理、型定義、テストコード、バグ修正、およびスクリプト実行。
 - **Gemini の領域**: 技術ドキュメント、README、リリースノート、コミットメッセージ、および人間が読むすべての引用符（`""`, `''`）内のテキストリテラル。
+
+> **分業の強制力について**: 本プロジェクトはコンパイラや OS レベルの制約ではなく、Claude Code スキル仕様（`SKILL.md`）を通じて AI エージェントに行動指針を与える**プロンプトベースのワークフロー指示**です。
 
 ---
 
@@ -82,28 +86,25 @@ Claude は最も優れたプログラミング AI のひとつであり、ソフ
 
 - **ランタイム**: [Node.js](https://nodejs.org)（v18 以上推奨）または [Python](https://python.org)（v3.8 以上）。
 - **実行バックエンド**（いずれかを選択）:
-  1. **Antigravity CLI (`agy`)**: インストールおよび認証済みの場合、追加の API キー設定なしで即座に動作します。
-  2. **Google Gemini API キー**: `agy` がない環境では、[Google AI Studio](https://aistudio.google.com/) で取得した `GEMINI_API_KEY`（または `GOOGLE_API_KEY`）環境変数を設定するだけで利用可能です。
+  1. **Google Gemini API キー (汎用標準)**: [Google AI Studio](https://aistudio.google.com/) で API キーを取得し、`GEMINI_API_KEY` 環境変数を設定します。
+  2. **Antigravity CLI (`agy`)**: Antigravity 環境が設定されており、`agy` CLI の認証が完了している場合は、API キー設定なしで自動的に認識されます。
 
-> **備考**: `scripts/agy_call.js` と `scripts/agy_call.py` は **外部パッケージへの依存が一切ありません（Zero Dependencies）**。Node.js 組み込みの `fetch` および Python 組み込みの `urllib.request` を使用しているため、事前の `npm install` や `pip install` は不要です。
+> **Zero Dependencies**: `scripts/agy_call.js`（Node.js 内蔵 `fetch`）および `scripts/agy_call.py`（Python 標準ライブラリ `urllib.request`）は**外部パッケージへの依存が一切ありません**。`npm install` や `pip install` は不要です。
 
 ---
 
 ## 📦 インストールガイド
 
-### 推奨: `npx skills` (skills.sh) によるインストール
+### 推奨: `npx skills` によるワンコマンドインストール
 
-リポジトリを clone することなく、公式 [skills](https://skills.sh/) CLI を使用して1行で即座にインストールできます:
+オープンなエージェントスキル標準ツールである [skills](https://skills.sh/) を使用することで、リポジトリを手動で clone することなく簡単に導入できます:
 
 ```bash
-# Claude Code にグローバルインストール
+# Claude Code にグローバルインストール (動作確認済み)
 npx skills add xyrz47-spec/just-code-claude -g -a claude-code
 
-# または検出されたすべての AI エージェントにグローバルインストール
-npx skills add xyrz47-spec/just-code-claude -g
-
-# 現在のプロジェクトにのみインストール
-npx skills add xyrz47-spec/just-code-claude
+# 現在のプロジェクトにのみインストールする場合
+npx skills add xyrz47-spec/just-code-claude -a claude-code
 ```
 
 ---
@@ -124,20 +125,16 @@ cd just-code-claude
 bash install.sh
 ```
 
+インストールスクリプトが自動的に `~/.claude/skills/just-code-claude/` にスキルファイルを配置します。
+
 ---
 
-## 🔌 設定とバックエンド
+## 🔌 設定と実行バックエンド
 
-`just-code-claude` は、環境に応じて最適なエンジンを自動検出する **デュアルバックエンド** をサポートしています:
+CLI ツールは2つのバックエンドをサポートしており、環境に応じて自動判定します:
 
-### バックエンド 1: Antigravity CLI (`agy`)
-システムに Antigravity CLI がインストールされている場合:
-- 自動的に検出され実行されます。
-- API キーの設定は不要です。
-- デフォルトで `--model gemini-3.8-flash-high` を使用します（必要に応じて `gemini-4-argon-high` を指定可能）。
-
-### バックエンド 2: Google Gemini 公式 REST API
-直接クラウド API を呼び出す場合や、CI/CD などの `agy` がない環境で実行する場合:
+### バックエンド 1: Google Gemini 公式 REST API (汎用標準)
+多くの開発者および CI/CD 環境に推奨される標準的な方法です:
 1. [Google AI Studio](https://aistudio.google.com/) から API キーを取得します。
 2. 環境変数を設定します:
    ```bash
@@ -147,8 +144,13 @@ bash install.sh
    # Windows PowerShell
    $env:GEMINI_API_KEY="your-api-key-here"
    ```
-3. または、CLI 実行時に直接渡すこともできます: `--api-key "your-key"`。
-4. デフォルトで `gemini-2.5-flash` を使用します（`-m` フラグで変更可能）。
+3. デフォルトモデル: `gemini-2.5-flash`（`-m` フラグで `gemini-2.0-flash` などに変更可能）。
+
+### バックエンド 2: Antigravity CLI (`agy`)
+Antigravity 開発環境を使用している開発者向け:
+- システムの `PATH` または標準パスに `agy` があれば自動的に検出されます。
+- ローカルの Antigravity CLI 認証をそのまま利用します。
+- デフォルトモデル: `gemini-3.8-flash-high`（Antigravity 環境モデル）。
 
 ---
 
@@ -162,7 +164,7 @@ Claude Code のプロンプトでコマンドを入力します:
 ```
 または自然言語で指示します:
 ```text
-just-code-claude モードで作業してください。コード設計とロジックはあなたが書き、すべてのテキスト成果物と UI コピーは agy を呼び出して作成してください。
+just-code-claude モードで作業してください。コード設計とロジックはあなたが書き、すべてのテキスト成果物と UI コピーは Gemini を呼び出して作成してください。
 ```
 
 ---
@@ -170,7 +172,7 @@ just-code-claude モードで作業してください。コード設計とロジ
 ### 2. コード内文字列置換ワークフロー
 
 #### ステップ A: Claude がプレースホルダーを含めてコードを作成
-Claude はロジックと JSX/HTML 構造を記述し、ユーザーに表示されるテキスト部分に `__AGY__("指示内容"[, "対象言語"])` または `__GEMINI__("指示内容"[, "対象言語"])` の形式でプレースホルダーを配置します:
+Claude はロジックと JSX/HTML 構造を記述し、テキスト部分に `__AGY__("指示内容"[, "対象言語"])` または `__GEMINI__("指示内容"[, "対象言語"])` の形式でプレースホルダーを配置します:
 
 ```tsx
 // src/components/SessionExpiryBanner.tsx
@@ -197,7 +199,7 @@ node scripts/agy_call.js --replace-in-file src/components/SessionExpiryBanner.ts
 *(Python 環境: `python scripts/agy_call.py --replace-in-file src/components/SessionExpiryBanner.tsx`)*
 
 #### ステップ C: 完成した本番コード
-すべてのプレースホルダーが、Gemini によって生成された自然な日本語テキストリテラルにインプレースで置換されます:
+すべてのプレースホルダーが、Gemini によって生成された自然な日本語テキストにその場で置換されます:
 ```tsx
 // src/components/SessionExpiryBanner.tsx
 import React from 'react';
@@ -219,17 +221,14 @@ export function SessionExpiryBanner({ onExtend }) {
 
 ### 3. ドキュメントおよび Markdown 生成ワークフロー
 
-すべての技術文書、README、ユーザーガイドの作成を Gemini に委任します:
+技術文書、README、ユーザーガイドの作成を Gemini に委任します:
 
 ```bash
-# Antigravity CLI を使用（デフォルトの自動検出）
-node scripts/agy_call.js -p "REST エンドポイントの入門ガイドを日本語で作成してください" -o docs/API_GUIDE.md
+# Gemini REST API を使用
+node scripts/agy_call.js -p "REST エンドポイントの入門ガイドを日本語で作成してください" -b api -o docs/API_GUIDE.md
 
-# Gemini API モードを明示的に使用
-node scripts/agy_call.js -p "システムアーキテクチャの概要ドキュメントを作成してください" -b api -o ARCHITECTURE.md
-
-# agy CLI を直接呼び出し
-agy -p "プロジェクト README の概要を作成してください" --model gemini-3.8-flash-high --dangerously-skip-permissions > README.md
+# agy CLI を使用（インストールされている場合）
+node scripts/agy_call.js -p "システムアーキテクチャの概要ドキュメントを作成してください" -b agy -o ARCHITECTURE.md
 ```
 
 ---
@@ -283,15 +282,15 @@ Usage: node scripts/agy_call.js [options]
    or: python scripts/agy_call.py [options]
 
 デュアルバックエンド実行:
-  1. Antigravity CLI (agy): インストールされている場合、自動検出されて優先実行。
-  2. Direct Gemini API: GEMINI_API_KEY 環境変数が設定されている場合、または agy が見つからない場合に自動実行。
+  1. Direct Gemini API: GEMINI_API_KEY 環境変数が設定されている場合、または -b api 指定時に実行。
+  2. Antigravity CLI (agy): ローカル環境に agy がインストールされている場合に自動検出されて実行。
 
 オプション:
   -p, --prompt <text>          生成するプロンプトテキスト
   -f, --file <path>            ファイルからプロンプト/文脈を読み込む
   -o, --output <path>          生成された結果を指定ファイルに出力
-  -b, --backend <mode>         バックエンドエンジンの選択: 'auto'（デフォルト）、'agy'、または 'api'
-  -m, --model <name>           モデルの指定（agy デフォルト: gemini-3.8-flash-high、api デフォルト: gemini-2.5-flash）
+  -b, --backend <mode>         バックエンドエンジンの選択: 'auto'（デフォルト）、'api'、または 'agy'
+  -m, --model <name>           モデル指定（api デフォルト: gemini-2.5-flash、agy デフォルト: gemini-3.8-flash-high）
   --api-key <key>              Google Gemini API キー（または GEMINI_API_KEY 環境変数）
   -l, --lang <language>        出力対象の言語（例: English, Korean, Japanese, Spanish）
   -s, --system <text>          プロンプトの先頭に付加するシステム指示
@@ -307,7 +306,7 @@ Usage: node scripts/agy_call.js [options]
 
 ## 🧪 動作確認とテスト
 
-テキスト生成およびコード内プレースホルダーの自動置換が正常に機能するかセルフテストを実行します:
+テキスト生成およびコード内プレースホルダーの自動置換が正常に機能するかテストを実行します:
 
 ```bash
 npm test
@@ -321,13 +320,17 @@ node scripts/test_skill.js
 
 ```
 just-code-claude/
-├── SKILL.md                 # Claude Code 専用のスキル定義および厳格な分業ルールガイド
+├── SKILL.md                 # Claude Code 専用のスキル定義および分業ルールガイド
 ├── README.md                # 英語の公式ドキュメント
 ├── README.ko.md             # 韓国語の公式ドキュメント
 ├── README.ja.md             # 日本語の公式ドキュメント
+├── README.zh-CN.md          # 中国語(簡体字)の公式ドキュメント
+├── README.es.md             # スペイン語の公式ドキュメント
+├── README.fr.md             # フランス語の公式ドキュメント
+├── README.de.md             # ドイツ語の公式ドキュメント
 ├── package.json             # NPM パッケージ設定ファイル
-├── install.ps1              # Windows PowerShell ワンクリックインストーラー
-├── install.sh               # Linux/macOS ワンクリックインストーラー
+├── install.ps1              # Windows PowerShell インストーラー
+├── install.sh               # Linux/macOS インストーラー
 ├── scripts/
 │   ├── agy_call.js          # Node.js デュアルバックエンドランナー（外部依存 0）
 │   ├── agy_call.py          # Python デュアルバックエンドランナー（標準ライブラリのみ）
