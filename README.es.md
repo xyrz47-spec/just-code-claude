@@ -91,38 +91,24 @@ Para ejecutar las herramientas de generación, asegúrate de tener:
 
 ## 📦 Guía de Instalación
 
-### Método 1: Habilidad Global de Claude Code (Recomendado)
+### Recomendado: Instalar mediante `npx skills` (skills.sh)
 
-La instalación global permite utilizar `/just-code-claude` en **todas** las sesiones de Claude Code en tu sistema.
+Puedes instalar `just-code-claude` al instante utilizando la herramienta oficial [skills](https://skills.sh/) sin clonar el repositorio:
 
-#### En Windows (PowerShell):
-```powershell
-git clone https://github.com/xyrz47-spec/just-code-claude.git
-cd just-code-claude
-.\install.ps1
-```
-
-#### En Linux / macOS (Bash):
 ```bash
-git clone https://github.com/xyrz47-spec/just-code-claude.git
-cd just-code-claude
-bash install.sh
-```
+# Instalar globalmente para Claude Code
+npx skills add xyrz47-spec/just-code-claude -g -a claude-code
 
-El instalador desplegará automáticamente la habilidad en `~/.claude/skills/just-code-claude/`.
+# O instalar globalmente para todos los agentes de IA detectados
+npx skills add xyrz47-spec/just-code-claude -g
+
+# O instalar únicamente en el proyecto actual
+npx skills add xyrz47-spec/just-code-claude
+```
 
 ---
 
-### Método 2: Habilidad a Nivel de Proyecto
-
-Si deseas utilizar la habilidad únicamente dentro de un repositorio específico:
-
-```bash
-mkdir -p .claude/skills/just-code-claude
-cp -r path/to/just-code-claude/* .claude/skills/just-code-claude/
-```
-
----
+### Alternativa: Instalar mediante Git Clone
 
 ## 🔌 Configuración y Motores Backend
 

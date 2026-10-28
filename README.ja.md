@@ -91,9 +91,24 @@ Claude は最も優れたプログラミング AI のひとつであり、ソフ
 
 ## 📦 インストールガイド
 
-### 方法 1: グローバル Claude Code スキルとしてインストール（推奨）
+### 推奨: `npx skills` (skills.sh) によるインストール
 
-グローバルにインストールすると、システム内の **すべて** の Claude Code セッションで `/just-code-claude` コマンドがすぐに利用可能になります。
+リポジトリを clone することなく、公式 [skills](https://skills.sh/) CLI を使用して1行で即座にインストールできます:
+
+```bash
+# Claude Code にグローバルインストール
+npx skills add xyrz47-spec/just-code-claude -g -a claude-code
+
+# または検出されたすべての AI エージェントにグローバルインストール
+npx skills add xyrz47-spec/just-code-claude -g
+
+# 現在のプロジェクトにのみインストール
+npx skills add xyrz47-spec/just-code-claude
+```
+
+---
+
+### 代替手段: Git Clone によるインストール
 
 #### Windows (PowerShell):
 ```powershell
@@ -107,19 +122,6 @@ cd just-code-claude
 git clone https://github.com/xyrz47-spec/just-code-claude.git
 cd just-code-claude
 bash install.sh
-```
-
-インストールスクリプトが自動的に `~/.claude/skills/just-code-claude/` にスキルを展開します。
-
----
-
-### 方法 2: プロジェクト単位のスキルとしてインストール
-
-特定のリポジトリ内でのみスキルを使用したい場合:
-
-```bash
-mkdir -p .claude/skills/just-code-claude
-cp -r path/to/just-code-claude/* .claude/skills/just-code-claude/
 ```
 
 ---

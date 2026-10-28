@@ -91,38 +91,24 @@ Pour exécuter les outils de génération :
 
 ## 📦 Guide d'Installation
 
-### Méthode 1 : Compétence Globale Claude Code (Recommandé)
+### Recommandé : Installation via `npx skills` (skills.sh)
 
-L'installation globale rend `/just-code-claude` accessible dans **toutes** vos sessions Claude Code.
+Vous pouvez installer `just-code-claude` instantanément à l'aide de l'outil officiel [skills](https://skills.sh/) sans cloner le dépôt :
 
-#### Sous Windows (PowerShell) :
-```powershell
-git clone https://github.com/xyrz47-spec/just-code-claude.git
-cd just-code-claude
-.\install.ps1
-```
-
-#### Sous Linux / macOS (Bash) :
 ```bash
-git clone https://github.com/xyrz47-spec/just-code-claude.git
-cd just-code-claude
-bash install.sh
-```
+# Installation globale pour Claude Code
+npx skills add xyrz47-spec/just-code-claude -g -a claude-code
 
-Le script déploie automatiquement les fichiers de la compétence dans `~/.claude/skills/just-code-claude/`.
+# Ou installation globale pour tous les agents IA détectés
+npx skills add xyrz47-spec/just-code-claude -g
+
+# Ou installation uniquement dans le projet actuel
+npx skills add xyrz47-spec/just-code-claude
+```
 
 ---
 
-### Méthode 2 : Compétence au Niveau du Projet
-
-Si vous préférez restreindre l'utilisation à un dépôt spécifique :
-
-```bash
-mkdir -p .claude/skills/just-code-claude
-cp -r path/to/just-code-claude/* .claude/skills/just-code-claude/
-```
-
----
+### Alternative : Installation via Git Clone
 
 ## 🔌 Configuration et Moteurs d'Exécution
 

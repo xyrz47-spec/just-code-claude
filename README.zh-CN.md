@@ -91,9 +91,24 @@ Claude 是目前最出色的编程 AI 之一，在软件架构设计、复杂状
 
 ## 📦 安装指南
 
-### 方式 1: 安装为全局 Claude Code 技能（推荐）
+### 推荐方式: 通过 `npx skills` (skills.sh) 安装
 
-全局安装后，系统内 **所有** Claude Code 会话均可随时通过 `/just-code-claude` 命令调用本技能。
+无需手动 clone 仓库，使用官方 [skills](https://skills.sh/) CLI 即可一行命令自动安装：
+
+```bash
+# 全局安装至 Claude Code
+npx skills add xyrz47-spec/just-code-claude -g -a claude-code
+
+# 或为系统识别的所有 AI Agent 全局安装
+npx skills add xyrz47-spec/just-code-claude -g
+
+# 仅安装至当前项目目录
+npx skills add xyrz47-spec/just-code-claude
+```
+
+---
+
+### 备选方式: 通过 Git Clone 安装
 
 #### Windows 系统 (PowerShell):
 ```powershell
@@ -107,19 +122,6 @@ cd just-code-claude
 git clone https://github.com/xyrz47-spec/just-code-claude.git
 cd just-code-claude
 bash install.sh
-```
-
-安装脚本会自动将技能文件部署至 `~/.claude/skills/just-code-claude/` 目录下。
-
----
-
-### 方式 2: 安装为项目级技能
-
-若仅希望在当前特定代码仓库中使用：
-
-```bash
-mkdir -p .claude/skills/just-code-claude
-cp -r path/to/just-code-claude/* .claude/skills/just-code-claude/
 ```
 
 ---

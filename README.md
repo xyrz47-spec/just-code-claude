@@ -91,9 +91,24 @@ To run the text generation scripts, ensure you have:
 
 ## 📦 Installation Guide
 
-### Method 1: Global Claude Code Skill (Recommended)
+### Recommended: Install via `npx skills` (skills.sh)
 
-Installing globally makes `/just-code-claude` available in **all** Claude Code sessions across your system.
+You can install `just-code-claude` instantly using the official [skills](https://skills.sh/) CLI without cloning:
+
+```bash
+# Install globally for Claude Code
+npx skills add xyrz47-spec/just-code-claude -g -a claude-code
+
+# Or install globally for all detected AI agents
+npx skills add xyrz47-spec/just-code-claude -g
+
+# Or install only into the current project
+npx skills add xyrz47-spec/just-code-claude
+```
+
+---
+
+### Alternative: Install via Git Clone
 
 #### On Windows (PowerShell):
 ```powershell
@@ -107,19 +122,6 @@ cd just-code-claude
 git clone https://github.com/xyrz47-spec/just-code-claude.git
 cd just-code-claude
 bash install.sh
-```
-
-The installer copies the skill to `~/.claude/skills/just-code-claude/`.
-
----
-
-### Method 2: Project-Level Skill
-
-If you only want to use this skill within a specific repository:
-
-```bash
-mkdir -p .claude/skills/just-code-claude
-cp -r path/to/just-code-claude/* .claude/skills/just-code-claude/
 ```
 
 ---

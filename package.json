@@ -3,9 +3,24 @@
   "version": "1.0.0",
   "description": "Claude Code skill: Claude writes code, Gemini writes text deliverables and UI strings via 'agy' or Gemini API.",
   "main": "scripts/agy_call.js",
+  "bin": {
+    "just-code-claude": "./bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "templates",
+    "examples",
+    "SKILL.md",
+    "README*.md",
+    "LICENSE",
+    "install.ps1",
+    "install.sh"
+  ],
   "scripts": {
     "test": "node scripts/test_skill.js",
-    "call": "node scripts/agy_call.js"
+    "call": "node scripts/agy_call.js",
+    "start": "node bin/cli.js"
   },
   "keywords": [
     "claude",
@@ -18,5 +33,13 @@
     "developer-tools"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xyrz47-spec/just-code-claude.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xyrz47-spec/just-code-claude/issues"
+  },
+  "homepage": "https://github.com/xyrz47-spec/just-code-claude#readme"
 }

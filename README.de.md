@@ -91,38 +91,24 @@ Zur Ausführung der Generierungsskripte wird Folgendes benötigt:
 
 ## 📦 Installationsanleitung
 
-### Methode 1: Globaler Claude Code Skill (Empfohlen)
+### Empfohlen: Installation über `npx skills` (skills.sh)
 
-Bei globaler Installation steht `/just-code-claude` in **allen** Claude Code Sitzungen auf deinem Rechner zur Verfügung.
+Mit dem offiziellen CLI-Tool von [skills](https://skills.sh/) kannst du `just-code-claude` sofort ohne manuelles Klonen installieren:
 
-#### Unter Windows (PowerShell):
-```powershell
-git clone https://github.com/xyrz47-spec/just-code-claude.git
-cd just-code-claude
-.\install.ps1
-```
-
-#### Unter Linux / macOS (Bash):
 ```bash
-git clone https://github.com/xyrz47-spec/just-code-claude.git
-cd just-code-claude
-bash install.sh
-```
+# Global für Claude Code installieren
+npx skills add xyrz47-spec/just-code-claude -g -a claude-code
 
-Das Skript installiert den Skill automatisch unter `~/.claude/skills/just-code-claude/`.
+# Oder global für alle erkannten KI-Agenten installieren
+npx skills add xyrz47-spec/just-code-claude -g
+
+# Oder nur im aktuellen Projekt installieren
+npx skills add xyrz47-spec/just-code-claude
+```
 
 ---
 
-### Methode 2: Skill auf Projektebene
-
-Wenn der Skill nur innerhalb eines bestimmten Projekts genutzt werden soll:
-
-```bash
-mkdir -p .claude/skills/just-code-claude
-cp -r path/to/just-code-claude/* .claude/skills/just-code-claude/
-```
-
----
+### Alternative: Installation über Git Clone
 
 ## 🔌 Konfiguration & Backends
 
