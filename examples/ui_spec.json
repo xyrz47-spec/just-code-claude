@@ -1,0 +1,19 @@
+{
+  "auth": {
+    "login": {
+      "heading": "Main welcoming header on login page",
+      "subtitle": "Warm subtitle encouraging users to access their dashboard",
+      "email_label": "Email address label",
+      "email_placeholder": "Placeholder showing sample user@domain.com",
+      "password_label": "Password label",
+      "password_placeholder": "Placeholder indicating minimum 8 characters",
+      "submit_btn": "Primary Sign In button text",
+      "forgot_password_link": "Forgot password helper link"
+    },
+    "errors": {
+      "invalid_credentials": "Clear error message when email or password is incorrect",
+      "network_failure": "Friendly network timeout message requesting user to retry",
+      "account_locked": "Security alert indicating account locked after 5 attempts"
+    }
+  }
+}

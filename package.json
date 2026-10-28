@@ -1,0 +1,22 @@
+{
+  "name": "just-code-claude",
+  "version": "1.0.0",
+  "description": "Claude Code skill: Claude writes code, Gemini writes text deliverables and UI strings via 'agy'.",
+  "main": "scripts/gemini_call.js",
+  "scripts": {
+    "test": "node scripts/test_skill.js",
+    "call": "node scripts/gemini_call.js"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agent-skill",
+    "gemini",
+    "agy",
+    "copywriting",
+    "localization",
+    "developer-tools"
+  ],
+  "author": "",
+  "license": "MIT"
+}
