@@ -9,15 +9,17 @@ Supports two backends:
 
 Supported Models:
  - 3.8 flash: 'gemini-3.8-flash' (Default: Fast, agile, ideal for UI copy, components, git commits)
- - 4 argon:   'gemini-4-argon'   (Deep reasoning, complex architecture & release docs, PR specs)
+ - 4 argon:   'gemini-4-argon'   (Deep reasoning, complex architecture & release docs, PR specs, releases)
 
 Reasoning Effort:
  - Configurable via -e, --effort <low|medium|high|xhigh|max> or GEMINI_EFFORT env
 
 Git & GitHub Integration:
- - --commit-msg : Draft Conventional Commits message from staged diff
- - --commit     : Draft Conventional Commits message and run git commit
- - --pr-desc    : Draft comprehensive GitHub PR description in Markdown
+ - --commit-msg    : Draft Conventional Commits message from staged diff
+ - --commit        : Draft Conventional Commits message and run git commit
+ - --pr-desc       : Draft comprehensive GitHub PR description in Markdown
+ - --release-notes : Draft comprehensive GitHub Release Notes from git tags/log
+ - --release [tag] : Draft GitHub Release Notes and publish via GitHub CLI (gh release create)
 
 Zero external dependencies (Standard library only).
 """
@@ -197,13 +199,52 @@ def get_git_diff() -> str:
         raise RuntimeError(f"Failed to read git diff: {e}")
 
 
+def get_release_context() -> dict:
+    last_tag = ""
+    try:
+        proc = subprocess.run(["git", "describe", "--tags", "--abbrev=0"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if proc.returncode == 0:
+            last_tag = proc.stdout.strip()
+    except Exception:
+        pass
+
+    log_range = f"{last_tag}..HEAD" if last_tag else "-n 50"
+    commits = ""
+    try:
+        proc = subprocess.run(["git", "log", log_range, "--oneline"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        commits = proc.stdout.strip() if proc.returncode == 0 else ""
+    except Exception:
+        pass
+
+    if not commits:
+        try:
+            proc = subprocess.run(["git", "log", "-n", "30", "--oneline"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            commits = proc.stdout.strip()
+        except Exception:
+            commits = "No commits found."
+
+    stat_range = f"{last_tag}..HEAD" if last_tag else "HEAD~10..HEAD"
+    stats = ""
+    try:
+        proc = subprocess.run(["git", "diff", stat_range, "--stat"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if proc.returncode == 0:
+            stats = proc.stdout.strip()
+    except Exception:
+        pass
+
+    return {
+        "last_tag": last_tag or "(Initial Release / No previous tag)",
+        "commits": commits or "No commits found.",
+        "stats": stats or ""
+    }
+
+
 def handle_git_commit(args, do_commit: bool = False):
     diff = get_git_diff()
     if not diff:
         raise RuntimeError("No git changes detected to generate a commit message for.")
 
     capped_diff = diff[:30000] + "\n\n[...diff truncated for size...]" if len(diff) > 30000 else diff
-
     lang = getattr(args, "lang", None) or "English"
     extra_context = f"\nAdditional Developer Context & Directives:\n{args.prompt}\n" if getattr(args, "prompt", None) else ""
 
@@ -271,7 +312,6 @@ def handle_pr_description(args):
         raise RuntimeError("No git changes detected to generate a PR description for.")
 
     capped_diff = diff[:35000] + "\n\n[...diff truncated for size...]" if len(diff) > 35000 else diff
-
     lang = getattr(args, "lang", None) or "English"
     extra_context = f"\nAdditional Context & Directives:\n{args.prompt}\n" if getattr(args, "prompt", None) else ""
 
@@ -317,6 +357,91 @@ Git Diff:
         print(f"[just-code-claude] PR description saved to: {args.output}")
     else:
         print(pr_content)
+
+
+def handle_release_notes(args, do_publish: bool = False):
+    rel_ctx = get_release_context()
+    lang = getattr(args, "lang", None) or "English"
+    extra_context = f"\nDeveloper Release Context & Highlights:\n{args.prompt}\n" if getattr(args, "prompt", None) else ""
+
+    prompt = f"""You are a Principal Software Release Manager and Technical Lead.
+Analyze the following git commit history, changed file statistics, and developer context to author comprehensive, production-grade GitHub Release Notes in Markdown.
+
+Target Language: {lang}
+{extra_context}
+Baseline / Previous Tag: {rel_ctx['last_tag']}
+
+Git Commits Since Baseline:
+{rel_ctx['commits']}
+
+Changed File Statistics:
+{rel_ctx['stats']}
+
+Required Markdown Structure:
+# Release Notes: <Suggested Version or Title>
+
+## 🚀 Overview & Key Highlights
+<Engaging, executive-level summary of the major features, purpose, and problem solved in this release>
+
+## 🛠 Detailed Changelog
+### ✨ New Features
+- <list of feature commits with clear, user-facing explanations>
+### 🐛 Bug Fixes & Stability
+- <list of bug fixes with problem and resolution>
+### ⚡ Performance & Architectural Improvements
+- <architectural changes, refactoring, or performance enhancements>
+### 📚 Documentation & Tooling
+- <updates to README, guides, CI/CD, scripts>
+
+## ⚠️ Breaking Changes & Migration Guide
+<Detailed instructions on how developers should migrate, or state "None" if backward-compatible>
+
+## 📦 Installation & Verification
+<Quick instructions on how to install or verify this release>
+
+Format Requirements:
+- Return ONLY the clean GitHub-Flavored Markdown.
+- Do NOT wrap in outer code blocks (```).
+- Ensure all technical terms, flags, and paths are backtick-formatted.
+"""
+
+    model = getattr(args, "model", None) or "4 argon"
+    effort = getattr(args, "effort", None) or "high"
+    print(f"[just-code-claude] Generating GitHub Release Notes using {model} (effort: {effort})...", file=sys.stderr)
+
+    response = execute_generation(prompt, args)
+    release_notes = clean_code_block(response)
+
+    output_path = args.output or "RELEASE_NOTES.md"
+    out_dir = os.path.dirname(output_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(release_notes)
+    print(f"[just-code-claude] Release notes saved to: {output_path}")
+
+    if do_publish:
+        tag = args.release_tag if (args.release_tag and args.release_tag != "auto") else None
+        print("\n--- Generated Release Notes Preview ---")
+        print(release_notes[:500] + "...\n---------------------------------------\n")
+
+        if not tag:
+            print(f"[just-code-claude] Release notes created at {output_path}.")
+            print("To publish to GitHub, specify a tag:")
+            print("  python scripts/agy_call.py --release v1.1.0")
+            print("Or run with GitHub CLI:")
+            print(f'  gh release create <tag> --notes-file {output_path} --title "<tag>"')
+            return
+
+        try:
+            print(f"[just-code-claude] Creating GitHub release for tag: {tag}...")
+            subprocess.run(["gh", "release", "create", tag, "--notes-file", output_path, "--title", tag], check=True)
+            print(f"[just-code-claude] Successfully published GitHub release: {tag}!")
+        except Exception as e:
+            print(f"[just-code-claude] Could not run 'gh release create' automatically: {e}", file=sys.stderr)
+            print(f'You can publish manually with GitHub CLI:\n  gh release create "{tag}" --notes-file "{output_path}" --title "{tag}"')
+    elif not args.output:
+        print("\n" + release_notes)
 
 
 def handle_replace_in_file(file_path: str, args):
@@ -434,9 +559,28 @@ def main():
     parser.add_argument("--commit-msg", action="store_true", help="Analyze git diff and generate Conventional Commit message")
     parser.add_argument("--commit", action="store_true", help="Analyze git diff, generate commit message and execute git commit")
     parser.add_argument("--pr-desc", action="store_true", help="Analyze git diff and generate GitHub PR description in Markdown")
+    parser.add_argument("--release-notes", action="store_true", help="Analyze git tags/history and generate GitHub Release Notes")
+    parser.add_argument("--release", nargs="?", const="auto", help="Generate release notes and publish via GitHub CLI (gh release create [tag])")
     parser.add_argument("--raw", action="store_true", help="Print raw text without extra formatting")
 
     args = parser.parse_args()
+
+    if args.release:
+        args.release_tag = args.release
+        try:
+            handle_release_notes(args, do_publish=True)
+            sys.exit(0)
+        except Exception as e:
+            print(f"[just-code-claude] Release failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    if args.release_notes:
+        try:
+            handle_release_notes(args, do_publish=False)
+            sys.exit(0)
+        except Exception as e:
+            print(f"[just-code-claude] Release notes generation failed: {e}", file=sys.stderr)
+            sys.exit(1)
 
     if args.commit:
         try:

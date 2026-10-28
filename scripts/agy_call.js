@@ -8,8 +8,8 @@
  *  2. Direct Google Gemini REST API - Uses GEMINI_API_KEY or GOOGLE_API_KEY
  * 
  * Supported Models:
- *  - 3.8 flash: 'gemini-3.8-flash' (Default: Fast, agile, ideal for UI copy, components, commits)
- *  - 4 argon:   'gemini-4-argon'   (Deep reasoning, complex architecture & release docs, PR specs)
+ *  - 3.8 flash: 'gemini-3.8-flash' (Default: Fast, agile, ideal for UI copy, components, git commits)
+ *  - 4 argon:   'gemini-4-argon'   (Deep reasoning, complex architecture & release docs, PR specs, releases)
  * 
  * Reasoning Effort:
  *  - Configurable via -e, --effort <low|medium|high|xhigh|max> or GEMINI_EFFORT env
@@ -70,6 +70,8 @@ function parseArgs(args) {
     commitMsg: false,
     commit: false,
     prDesc: false,
+    releaseNotes: false,
+    releaseTag: null,
     lang: null,
     system: null,
     help: false,
@@ -104,6 +106,10 @@ function parseArgs(args) {
       options.commit = true;
     } else if (arg === '--pr-desc') {
       options.prDesc = true;
+    } else if (arg === '--release-notes') {
+      options.releaseNotes = true;
+    } else if (arg === '--release') {
+      options.releaseTag = args[i + 1] && !args[i + 1].startsWith('-') ? args[++i] : 'auto';
     } else if (arg === '-s' || arg === '--system') {
       options.system = args[++i];
     } else if (arg === '--raw') {
@@ -122,7 +128,7 @@ Usage: node agy_call.js [options]
 
 Supported Models:
   1. 3.8 flash: 'gemini-3.8-flash' (Default) - Ultra-fast, ideal for UI copy, components, git commits
-  2. 4 argon:   'gemini-4-argon'             - Maximum reasoning depth, architecture docs, PR specs
+  2. 4 argon:   'gemini-4-argon'             - Maximum reasoning depth, architecture docs, PR specs, releases
 
 Reasoning Effort:
   -e, --effort <low|medium|high|xhigh|max>   - Set reasoning budget (Default: medium)
@@ -135,6 +141,8 @@ Git & GitHub Integration:
   --commit-msg                 Analyze staged git diff and generate a Conventional Commit message
   --commit                     Generate commit message from staged git diff and run 'git commit'
   --pr-desc                    Analyze staged git diff and generate a GitHub PR description in Markdown
+  --release-notes              Analyze git tags/log and draft comprehensive GitHub Release Notes
+  --release [tag]              Generate GitHub Release Notes and publish via GitHub CLI (gh release create)
 
 Options:
   -p, --prompt <text>          Direct prompt text or developer context
@@ -153,17 +161,17 @@ Options:
   -h, --help                   Show this help message
 
 Examples:
-  # 1. Generate commit message from staged diff
-  node agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Added MFA login modal" --lang Korean
+  # 1. Conventional Commit from staged changes
+  node agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Added MFA login modal" --lang Korean
 
-  # 2. Generate commit message and execute git commit immediately
-  node agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Fix OAuth token refresh bug"
-
-  # 3. Generate comprehensive PR description with 4 argon & high effort
+  # 2. Comprehensive PR description with 4 argon
   node agy_call.js --pr-desc -m "4 argon" -e high -o PULL_REQUEST.md
 
-  # 4. In-code string replacement with rich directives
-  node agy_call.js --replace-in-file src/components/Login.tsx -m "3.8 flash" -e medium --lang English
+  # 3. Generate GitHub Release Notes
+  node agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 major release" -o RELEASE_NOTES.md
+
+  # 4. Generate notes and publish GitHub Release for tag
+  node agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: Official stable release"
 `);
 }
 
@@ -321,6 +329,39 @@ function getGitDiff() {
   }
 }
 
+function getReleaseContext() {
+  let lastTag = '';
+  try {
+    lastTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+  } catch (e) {
+    // No tags found
+  }
+
+  let logRange = lastTag ? `${lastTag}..HEAD` : '-n 50';
+  let commits = '';
+  try {
+    commits = execSync(`git log ${logRange} --oneline`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+  } catch (e) {
+    try {
+      commits = execSync('git log -n 30 --oneline', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    } catch (err) {
+      commits = 'No commits found.';
+    }
+  }
+
+  let statRange = lastTag ? `${lastTag}..HEAD` : 'HEAD~10..HEAD';
+  let stats = '';
+  try {
+    stats = execSync(`git diff ${statRange} --stat`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+  } catch (e) {}
+
+  return {
+    lastTag: lastTag || '(Initial Release / No previous tag)',
+    commits: commits || 'No commits found.',
+    stats: stats || '',
+  };
+}
+
 async function handleGitCommit(options, doCommit) {
   const diff = getGitDiff();
   if (!diff) {
@@ -445,6 +486,93 @@ ${cappedDiff}
   }
 }
 
+async function handleReleaseNotes(options, doPublish) {
+  const relCtx = getReleaseContext();
+
+  const prompt = `You are a Principal Software Release Manager and Technical Lead.
+Analyze the following git commit history, changed file statistics, and developer context to author comprehensive, production-grade GitHub Release Notes in Markdown.
+
+Target Language: ${options.lang || 'English'}
+${options.prompt ? `\nDeveloper Release Context & Highlights:\n${options.prompt}\n` : ''}
+
+Baseline / Previous Tag: ${relCtx.lastTag}
+
+Git Commits Since Baseline:
+${relCtx.commits}
+
+Changed File Statistics:
+${relCtx.stats}
+
+Required Markdown Structure:
+# Release Notes: <Suggested Version or Title>
+
+## 🚀 Overview & Key Highlights
+<Engaging, executive-level summary of the major features, purpose, and problem solved in this release>
+
+## 🛠 Detailed Changelog
+### ✨ New Features
+- <list of feature commits with clear, user-facing explanations>
+### 🐛 Bug Fixes & Stability
+- <list of bug fixes with problem and resolution>
+### ⚡ Performance & Architectural Improvements
+- <architectural changes, refactoring, or performance enhancements>
+### 📚 Documentation & Tooling
+- <updates to README, guides, CI/CD, scripts>
+
+## ⚠️ Breaking Changes & Migration Guide
+<Detailed instructions on how developers should migrate, or state "None" if backward-compatible>
+
+## 📦 Installation & Verification
+<Quick instructions on how to install or verify this release>
+
+Format Requirements:
+- Return ONLY the clean GitHub-Flavored Markdown.
+- Do NOT wrap in outer code blocks (\`\`\`).
+- Ensure all technical terms, flags, and paths are backtick-formatted.
+`;
+
+  const chosenModel = options.model || '4 argon';
+  const chosenEffort = options.effort || 'high';
+  console.log(`[just-code-claude] Generating GitHub Release Notes using ${chosenModel} (effort: ${chosenEffort})...`);
+
+  const response = await executeGeneration(prompt, { ...options, model: chosenModel, effort: chosenEffort });
+  const releaseNotes = cleanCodeBlock(response);
+
+  const outputPath = options.output || 'RELEASE_NOTES.md';
+  const outDir = path.dirname(outputPath);
+  if (outDir && !fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+  fs.writeFileSync(outputPath, releaseNotes, 'utf-8');
+  console.log(`[just-code-claude] Release notes saved to: ${outputPath}`);
+
+  if (doPublish) {
+    const tag = (options.releaseTag && options.releaseTag !== 'auto') ? options.releaseTag : null;
+    console.log('\n--- Generated Release Notes Preview ---');
+    console.log(releaseNotes.substring(0, 500) + '...\n---------------------------------------\n');
+
+    if (!tag) {
+      console.log(`[just-code-claude] Release notes created at ${outputPath}.`);
+      console.log(`To publish to GitHub, specify a tag:`);
+      console.log(`  node scripts/agy_call.js --release v1.1.0`);
+      console.log(`Or run with GitHub CLI:`);
+      console.log(`  gh release create <tag> --notes-file ${outputPath} --title "<tag>"`);
+      return;
+    }
+
+    try {
+      console.log(`[just-code-claude] Creating GitHub release for tag: ${tag}...`);
+      execSync(`gh release create "${tag}" --notes-file "${outputPath}" --title "${tag}"`, { stdio: 'inherit' });
+      console.log(`[just-code-claude] Successfully published GitHub release: ${tag}!`);
+    } catch (err) {
+      console.warn(`[just-code-claude] Could not run 'gh release create' automatically: ${err.message}`);
+      console.log(`You can publish manually with GitHub CLI:\n  gh release create "${tag}" --notes-file "${outputPath}" --title "${tag}"`);
+    }
+  } else if (!options.output) {
+    console.log('\n' + releaseNotes);
+  }
+}
+
 async function handleReplaceInFile(filePath, options) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
@@ -564,6 +692,26 @@ async function main() {
     process.exit(0);
   }
 
+  if (options.releaseTag) {
+    try {
+      await handleReleaseNotes(options, true);
+      process.exit(0);
+    } catch (err) {
+      console.error(`[just-code-claude] Release failed: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  if (options.releaseNotes) {
+    try {
+      await handleReleaseNotes(options, false);
+      process.exit(0);
+    } catch (err) {
+      console.error(`[just-code-claude] Release notes generation failed: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
   if (options.commit) {
     try {
       await handleGitCommit(options, true);
@@ -670,6 +818,7 @@ module.exports = {
   runGeminiApi,
   handleGitCommit,
   handlePrDescription,
+  handleReleaseNotes,
   handleReplaceInFile,
   handleJsonStrings,
   normalizeModel,

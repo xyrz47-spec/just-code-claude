@@ -20,7 +20,7 @@
 [![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude writes code. Gemini writes text."**  
-> Une compétence open source pour Claude Code : Claude gère l'architecture et la logique du code, tandis qu'il délègue la documentation, les README, **les messages de commit Git, les descriptions de PR** et les textes d'interface utilisateur à **Google Gemini** (`3.8 flash` ou `4 argon`, avec contrôle de l'effort de raisonnement) via l'**API REST Google Gemini** ou la **CLI Antigravity (`agy`)**.
+> Une compétence open source pour Claude Code : Claude gère l'architecture et la logique du code, tandis qu'il délègue la documentation, les README, **les messages de commit Git, les descriptions de PR, les notes de version GitHub Releases** et les textes d'interface utilisateur à **Google Gemini** (`3.8 flash` ou `4 argon`, avec contrôle de l'effort de raisonnement) via l'**API REST Google Gemini** ou la **CLI Antigravity (`agy`)**.
 
 ---
 
@@ -29,28 +29,34 @@
 | Modèle | Alias CLI | Cas d'Utilisation Principal | Effort Recommandé |
 | :--- | :--- | :--- | :--- |
 | **`3.8 flash`** *(Par défaut)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | UI copy ultra-rapide, boutons, modales, messages de commit | `low` ou `medium` |
-| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | Raisonnement approfondi, architecture système, descriptions de PR | `high` ou `max` |
+| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | Raisonnement approfondi, architecture système, descriptions de PR, GitHub Releases | `high` ou `max` |
 
 ---
 
-## 🐙 Intégration Git & GitHub (Commits & PR)
+## 🐙 Intégration Git & GitHub (Commits, PRs & Releases)
 
 ### 1. Commit automatique en une seule commande (`--commit`)
-Analyse le diff indexé (staged), rédige un message selon Conventional Commits et exécute directement `git commit` :
 ```bash
 node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Implémentation du modal MFA et de l'actualisation de token" -l French
 ```
 
 ### 2. Prévisualisation du message de commit (`--commit-msg`)
-Génère un message sans exécuter le commit immédiatement :
 ```bash
 node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Correction d'une race condition sur WebSocket heartbeat" -l French
 ```
 
 ### 3. Description complète de GitHub PR (`--pr-desc`)
-Exploite **`4 argon`** pour analyser l'ensemble des modifications et produire une description Markdown structurée pour votre PR :
 ```bash
 node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Migration du state management de Redux vers Zustand" -o PULL_REQUEST.md -l French
+```
+
+### 4. Notes de version GitHub Releases et publication (`--release-notes`, `--release [tag]`)
+```bash
+# Générer les notes de version
+node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: Version v1.2.0" -o RELEASE_NOTES.md -l French
+
+# Publier la release sur GitHub
+node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -l French
 ```
 
 ---
@@ -66,6 +72,9 @@ node scripts/agy_call.js -m "4 argon" -e high -p "Rédige le guide d'architectur
 
 # Créer un commit automatiquement
 node scripts/agy_call.js --commit -m "3.8 flash" -e medium -l French
+
+# Publier une release GitHub
+node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -l French
 ```
 
 ---

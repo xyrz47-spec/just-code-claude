@@ -20,7 +20,7 @@
 [![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude writes code. Gemini writes text."**  
-> Claude Code를 위한 오픈소스 스킬: 클로드는 소프트웨어 아키텍처와 코드 로직에 집중하고, 문서, README, **GitHub 커밋 메시지, PR 설명**, 코드 내부의 사용자 안내 텍스트(따옴표 `""` 내부 문자열)는 **Google Gemini**(`3.8 flash` 또는 `4 argon`, 추론 노력치 설정 지원)가 **Google Gemini REST API** 또는 **Antigravity CLI(`agy`)**를 통해 생성하도록 역할을 분담합니다.
+> Claude Code를 위한 오픈소스 스킬: 클로드는 소프트웨어 아키텍처와 코드 로직에 집중하고, 기술 문서, README, **GitHub 커밋 메시지, PR 설명, GitHub 릴리스 노트(Changelog)**, 코드 내부의 사용자 안내 텍스트(따옴표 `""` 내부 문자열)는 **Google Gemini**(`3.8 flash` 또는 `4 argon`, 추론 노력치 설정 지원)가 **Google Gemini REST API** 또는 **Antigravity CLI(`agy`)**를 통해 생성하도록 역할을 분담합니다.
 
 ---
 
@@ -29,7 +29,7 @@
 - [개발 동기 및 설계 철학](#-개발-동기-및-설계-철학)
 - [지원 모델 및 노력치(Reasoning Effort) 설정](#-지원-모델-및-노력치reasoning-effort-설정)
 - [상세 맥락 지침 (프롬프팅 표준)](#-상세-맥락-지침-프롬프팅-표준)
-- [Git & GitHub 전용 연동 (커밋 및 PR)](#-git--github-전용-연동-커밋-및-pr)
+- [Git & GitHub 전용 연동 (커밋, PR, 릴리스)](#-git--github-전용-연동-커밋-pr-릴리스)
 - [동작 원리](#-동작-원리)
 - [사전 요구사항](#-사전-요구사항)
 - [설치 방법](#-설치-방법)
@@ -43,7 +43,7 @@
   - [2. 코드 내부 문자열 자동 생성 및 치환](#2-워크플로우-코드-내부-문자열-치환)
   - [3. 기술 문서 및 마크다운 생성](#3-워크플로우-기술-문서-및-마크다운-생성)
   - [4. 대량 UI 문자열 및 다국어(i18n) 현지화](#4-워크플로우-대량-ui-현지화-i18n)
-  - [5. Conventional Git 커밋 메시지 및 PR 설명 생성](#5-워크플로우-git-커밋-메시지-및-pr-설명-작성)
+  - [5. Git 커밋, PR 설명 및 GitHub 릴리스 작성](#5-워크플로우-git-커밋-pr-설명-및-github-릴리스-작성)
 - [CLI 상세 옵션](#-cli-상세-옵션)
 - [검증 및 테스트](#-검증-및-테스트)
 - [디렉터리 구조](#-디렉터리-구조)
@@ -55,7 +55,7 @@
 
 현대 AI 보조 엔지니어링 환경에서 각 모델은 저마다 뛰어난 강점을 가지고 있습니다:
 - **Claude**: 복잡한 소프트웨어 아키텍처, AST 분석 및 코드 조작, TypeScript 타입 시스템, 정밀한 알고리즘 설계에 최적화되어 있습니다.
-- **Google Gemini**: 뛰어난 다국어 처리 능력, 자연스러운 사용자 친화적 문장 구성, 빠른 텍스트 생성 속도, 그리고 git 변경점 분석 및 기술 문서화에서 탁월한 이해도를 보입니다.
+- **Google Gemini**: 뛰어난 다국어 처리 능력, 자연스러운 사용자 친화적 문장 구성, 빠른 텍스트 생성 속도, 그리고 git 변경점 분석, 릴리스 체인지로그 구성, 기술 문서화에서 탁월한 이해도를 보입니다.
 
 `just-code-claude`는 두 모델의 장점을 결합하여 자동화된 분업 워크플로우를 구현합니다:
 
@@ -78,7 +78,7 @@
                    ▼                                     ▼
       함수형 컴포넌트, 훅,                  UI 버튼 라벨, 토스트 알림,
       데이터 변이, 상태 머신,                에러 메시지, 기술 문서, README,
-      CSS 레이아웃 스타일링                   커밋 메시지, PR 설명
+      CSS 레이아웃 스타일링                   커밋, PR 설명, 릴리스 노트
                    │                                     │
                    └──────────────────┬──────────────────┘
                                       ▼
@@ -96,13 +96,13 @@
 | 모델 | CLI 별칭 | 주 사용처 | 권장 노력치 |
 | :--- | :--- | :--- | :--- |
 | **`3.8 flash`** *(기본값)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | 초고속 UI 카피, 버튼 라벨, 모달 대화상자, 폼 유효성 에러, 토스트 알림, Git 커밋 메시지 | `low` 또는 `medium` |
-| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | 고난도 추론, 시스템 아키텍처 문서, 상세 API 명세서, 기술 RFC, GitHub PR 설명 | `high` 또는 `max` |
+| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | 고난도 추론, 시스템 아키텍처 문서, 상세 API 명세서, 기술 RFC, GitHub PR 설명, GitHub 릴리스 노트 | `high` 또는 `max` |
 
 ### 추론 노력치 (`-e, --effort`):
 - `low`: 단순 마이크로카피, 버튼 텍스트, 단일 레이블 (지연 시간 최소화).
 - `medium` *(기본값)*: 모달 안내문, 폼 검증 에러, 알림창, Git 커밋 메시지.
-- `high`: 심층 기술 문서, 아키텍처 다이어그램 설명, GitHub PR 설명, 종합 README.
-- `xhigh` / `max`: 대규모 마이그레이션 명세, 보안 백서, 복합 가이드라인.
+- `high`: 심층 기술 문서, 아키텍처 다이어그램 설명, GitHub PR 설명, GitHub 릴리스 노트, 종합 README.
+- `xhigh` / `max`: 대규모 마이그레이션 명세, 보안 백서, 복합 릴리스 패키지 문서.
 
 ---
 
@@ -111,7 +111,7 @@
 단순하고 모호한 플레이스홀더를 방지하기 위해, 클로드는 다음과 같은 **5대 핵심 맥락 지침**을 상세히 구성하여 제미나이에게 전달합니다:
 
 ### 클로드가 지정하는 5대 맥락 요소:
-1. **Context (위치 및 상태)**: 컴포넌트 위치, 화면 상태, git 변경 범위 및 대상 모듈.
+1. **Context (위치 및 상태)**: 컴포넌트 위치, 화면 상태, git 변경 범위 및 릴리스 마일스톤.
 2. **Intent (사용자 의도 및 목표)**: 사용자가 취해야 할 행동, 변경의 구조적 이유나 목적.
 3. **Tone (톤앤매너)**: 공감적, 전문적, 긴급함, 기술적 엄밀성 등 브랜드 보이스.
 4. **Constraints (제약사항)**: 글자 수 한도, Conventional Commits 포맷 규격.
@@ -119,9 +119,9 @@
 
 ---
 
-## 🐙 Git & GitHub 전용 연동 (커밋 및 PR)
+## 🐙 Git & GitHub 전용 연동 (커밋, PR, 릴리스)
 
-`just-code-claude`는 Git 커밋 및 GitHub Pull Request 작성 작업을 완벽하게 지원합니다:
+`just-code-claude`는 Git 커밋, GitHub Pull Request, GitHub 릴리스 작성 작업을 완벽하게 지원합니다:
 
 ### 1. 한 번에 커밋 실행 (`--commit`)
 스테이징된 diff를 분석하고, 개발자의 맥락 지시를 결합하여 Conventional Commits 메시지를 생성한 뒤 곧바로 `git commit`을 실행합니다:
@@ -139,6 +139,16 @@ node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: 웹�
 **`4 argon`** 모델의 깊은 추론 능력을 활용하여 전체 diff를 분석하고 체계적인 마크다운 PR 문서를 생성합니다:
 ```bash
 node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Redux에서 Zustand로의 프론트엔드 상태 관리 마이그레이션" -o PULL_REQUEST.md --lang Korean
+```
+
+### 4. GitHub 릴리스 노트 생성 및 발행 (`--release-notes`, `--release [tag]`)
+이전 태그 이후의 커밋 및 통계를 분석하여 주요 하이라이트, 버그 수정, 브레이킹 체인지가 일목요연하게 정리된 릴리스 노트를 마크다운으로 작성하고 GitHub에 즉시 발행합니다:
+```bash
+# 릴리스 노트를 파일로 생성
+node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 마일스톤 릴리스" -o RELEASE_NOTES.md --lang Korean
+
+# 릴리스 노트 생성 후 GitHub CLI(gh)를 통해 지정 태그로 즉시 발행
+node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: 공식 안정화 릴리스 v1.2.0" --lang Korean
 ```
 
 ---
@@ -230,7 +240,7 @@ Claude Code 세션에서 스킬을 호출합니다:
 ```
 또는 프롬프트로 직접 지시합니다:
 ```text
-just-code-claude 모드를 활성화해줘. 코드는 네가 짜고, 모든 안내 문구, 문서, 커밋 메시지, PR 설명은 제미나이에게 맡겨줘.
+just-code-claude 모드를 활성화해줘. 코드는 네가 짜고, 모든 안내 문구, 문서, 커밋 메시지, PR 설명, 릴리스 노트는 제미나이에게 맡겨줘.
 ```
 
 ---
@@ -326,7 +336,7 @@ node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -o src/local
 
 ---
 
-### 5. 워크플로우: Git 커밋 메시지 및 PR 설명 작성
+### 5. 워크플로우: Git 커밋, PR 설명 및 GitHub 릴리스 작성
 
 ```bash
 # 옵션 1: Conventional Commits 메시지 자동 생성 및 즉시 커밋
@@ -338,6 +348,12 @@ git commit -F .commit_msg.tmp
 
 # 옵션 3: 4 argon을 활용한 종합 GitHub PR 설명 작성
 node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: 프론트엔드 상태 관리 아키텍처 개선" -o PULL_REQUEST.md --lang Korean
+
+# 옵션 4: GitHub 릴리스 노트 작성
+node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 마일스톤 릴리스" -o RELEASE_NOTES.md --lang Korean
+
+# 옵션 5: GitHub CLI(gh)를 통한 릴리스 발행
+node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: 공식 안정화 릴리스 v1.2.0" --lang Korean
 ```
 
 ---
@@ -350,7 +366,7 @@ node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: 프론트�
 
 지원 모델:
   - '3.8 flash' (gemini-3.8-flash) [기본값]   : 초고속 UI 카피, 컴포넌트 안내문, Git 커밋
-  - '4 argon'   (gemini-4-argon)              : 고난도 추론, 아키텍처 설계 문서, PR 명세서
+  - '4 argon'   (gemini-4-argon)              : 고난도 추론, 아키텍처 설계 문서, PR 명세서, 릴리스 노트
 
 추론 노력치 (Reasoning Effort):
   -e, --effort <low|medium|high|xhigh|max>    : 추론 예산 및 노력치 수준 설정 (기본값: medium)
@@ -359,6 +375,8 @@ Git & GitHub 연동:
   --commit-msg                                : git diff를 분석하여 Conventional Commits 메시지 생성
   --commit                                    : git diff 분석 후 메시지를 생성하고 즉시 git commit 실행
   --pr-desc                                   : git diff를 기반으로 마크다운 형식의 GitHub PR 설명 생성
+  --release-notes                             : git 태그/커밋 로그를 분석하여 GitHub 릴리스 노트 작성
+  --release [tag]                             : GitHub 릴리스 노트를 생성하고 GitHub CLI(gh release create)로 발행
 
 실행 백엔드:
   1. Direct Gemini API: GEMINI_API_KEY가 있거나 -b api 지정 시 사용.
@@ -384,7 +402,7 @@ Git & GitHub 연동:
 
 ## 🧪 검증 및 테스트
 
-텍스트 생성, 모델 전환, 코드 플레이스홀더 치환, 커밋 메시지 생성이 정상 동작하는지 자체 테스트를 실행할 수 있습니다:
+텍스트 생성, 모델 전환, 코드 플레이스홀더 치환, 커밋 및 릴리스 노트 생성이 정상 동작하는지 자체 테스트를 실행할 수 있습니다:
 
 ```bash
 npm test
@@ -410,14 +428,14 @@ just-code-claude/
 ├── install.ps1              # Windows PowerShell 설치 스크립트
 ├── install.sh               # Linux/macOS Bash 설치 스크립트
 ├── scripts/
-│   ├── agy_call.js          # Node.js 듀얼 백엔드 러너 (Git 커밋/PR 내장 지원)
-│   ├── agy_call.py          # Python 듀얼 백엔드 러너 (Git 커밋/PR 내장 지원)
+│   ├── agy_call.js          # Node.js 듀얼 백엔드 러너 (Git 커밋/PR/릴리스 내장 지원)
+│   ├── agy_call.py          # Python 듀얼 백엔드 러너 (Git 커밋/PR/릴리스 내장 지원)
 │   └── test_skill.js        # 자동화된 통합 기능 검증 테스트 슈트
 ├── examples/
 │   ├── before_code.tsx      # 상세 __AGY__ 플레이스홀더가 적용된 코드 예시
 │   └── ui_spec.json         # 대량 현지화용 명세서 예시
 └── templates/
-    └── prompt_templates.md  # UX 카피, 문서, 커밋 메시지용 프롬프트 템플릿
+    └── prompt_templates.md  # UX 카피, 문서, 커밋 메시지, 릴리스용 프롬프트 템플릿
 ```
 
 ---

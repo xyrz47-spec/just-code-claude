@@ -20,7 +20,7 @@
 [![Powered by: Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4.svg)](https://aistudio.google.com/)
 
 > **"Claude writes code. Gemini writes text."**  
-> An open-source **Claude Code skill** designed to separate engineering tasks: Claude focuses on software architecture and code logic, while delegating natural language deliverables (documentation, READMEs, Git commit messages, PR descriptions, and in-code string literals inside quotes) to **Google Gemini** (`3.8 flash` or `4 argon` with customizable reasoning effort) via the **Google Gemini REST API** or the **Antigravity CLI (`agy`)**.
+> An open-source **Claude Code skill** designed to separate engineering tasks: Claude focuses on software architecture and code logic, while delegating natural language deliverables (documentation, READMEs, Git commit messages, PR descriptions, GitHub Release notes, and in-code string literals inside quotes) to **Google Gemini** (`3.8 flash` or `4 argon` with customizable reasoning effort) via the **Google Gemini REST API** or the **Antigravity CLI (`agy`)**.
 
 ---
 
@@ -29,7 +29,7 @@
 - [Motivation & Design Philosophy](#-motivation--design-philosophy)
 - [Supported Models & Reasoning Effort](#-supported-models--reasoning-effort)
 - [Detailed Context Directives (Prompting Standard)](#-detailed-context-directives-prompting-standard)
-- [Git & GitHub Integration (Commit & PR)](#-git--github-integration-commit--pr)
+- [Git & GitHub Integration (Commit, PR & Release)](#-git--github-integration-commit-pr--release)
 - [How It Works](#-how-it-works)
 - [Prerequisites](#-prerequisites)
 - [Installation Guide](#-installation-guide)
@@ -43,7 +43,7 @@
   - [2. In-Code String Replacement](#2-workflow-in-code-string-replacement)
   - [3. Documentation & Markdown Generation](#3-workflow-generating-documentation--markdown)
   - [4. Batch UI Strings & i18n Localization](#4-workflow-batch-i18n-localization)
-  - [5. Conventional Git Commit Messages & PR Descriptions](#5-workflow-git-commit-messages--pr-descriptions)
+  - [5. Git Commits, PRs & GitHub Releases](#5-workflow-git-commits-prs--github-releases)
 - [CLI Reference](#-cli-reference)
 - [Verification & Testing](#-verification--testing)
 - [Repository Structure](#-repository-structure)
@@ -55,7 +55,7 @@
 
 In modern AI-assisted engineering workflows, different language models exhibit distinct strengths:
 - **Claude** excels at complex software architecture, AST manipulation, TypeScript type systems, and algorithmic reasoning.
-- **Google Gemini** offers strong multilingual fluency, natural user-facing phrasing, fast text generation, and deep context comprehension for commit logs and technical documentation.
+- **Google Gemini** offers strong multilingual fluency, natural user-facing phrasing, fast text generation, and deep context comprehension for commit logs, changelogs, and technical release notes.
 
 `just-code-claude` creates an automated collaboration workflow between both models:
 
@@ -78,7 +78,7 @@ In modern AI-assisted engineering workflows, different language models exhibit d
                    ▼                                     ▼
       Function components, hooks,            UI button labels, toasts,
       data mutations, state machines,        error alerts, docs, READMEs,
-      and CSS layout                         commits, and PR descriptions
+      and CSS layout                         commits, PRs, and releases
                    │                                     │
                    └──────────────────┬──────────────────┘
                                       ▼
@@ -96,13 +96,13 @@ The skill is built around two primary Google Gemini models with configurable rea
 | Model | CLI Alias | Primary Use Case | Recommended Effort |
 | :--- | :--- | :--- | :--- |
 | **`3.8 flash`** *(Default)* | `3.8 flash`, `flash`, `gemini-3.8-flash` | Ultra-fast UI copy, button labels, modal dialogs, form errors, toast banners, Git commit messages | `low` or `medium` |
-| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | High-reasoning architectural docs, comprehensive API guides, technical RFCs, GitHub PR descriptions | `high` or `max` |
+| **`4 argon`** | `4 argon`, `argon`, `gemini-4-argon` | High-reasoning architectural docs, comprehensive API guides, technical RFCs, GitHub PRs, Release Notes | `high` or `max` |
 
 ### Reasoning Effort (`-e, --effort`):
 - `low`: Microcopy, buttons, individual string labels (instantaneous response).
 - `medium` *(Default)*: Modals, form validations, toast notifications, commit messages.
-- `high`: Deep technical documentation, architecture overviews, GitHub PR descriptions, complete READMEs.
-- `xhigh` / `max`: Comprehensive migration specs, security whitepapers, complex multi-page guides.
+- `high`: Deep technical documentation, architecture overviews, GitHub PR descriptions, GitHub Release notes.
+- `xhigh` / `max`: Comprehensive migration specs, security whitepapers, complex multi-page release dossiers.
 
 ---
 
@@ -111,7 +111,7 @@ The skill is built around two primary Google Gemini models with configurable rea
 To ensure the highest quality copy, Claude is instructed to provide **rich, multi-dimensional context directives** rather than brief or vague placeholders:
 
 ### The 5 Dimensions Claude Specifies:
-1. **Context**: Specific component, modal, git diff scope, or module.
+1. **Context**: Specific component, modal, git diff scope, or release milestone.
 2. **Intent**: Exact user action, business goal, architectural motivation, or reassurance needed.
 3. **Tone**: Desired brand voice (e.g., empathetic, solemn, energetic, professional).
 4. **Constraints**: Character limits, Conventional Commits formatting, Title Case vs sentence case.
@@ -119,7 +119,7 @@ To ensure the highest quality copy, Claude is instructed to provide **rich, mult
 
 ---
 
-## 🐙 Git & GitHub Integration (Commit & PR)
+## 🐙 Git & GitHub Integration (Commit, PR & Release)
 
 `just-code-claude` includes first-class support for Git and GitHub workflows:
 
@@ -139,6 +139,16 @@ node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Bug 
 Uses **`4 argon`** with high reasoning effort to analyze the entire diff and draft a structured GitHub PR in Markdown:
 ```bash
 node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: State management migration from Redux to Zustand" -o PULL_REQUEST.md
+```
+
+### 4. GitHub Release Notes & Publishing (`--release-notes`, `--release [tag]`)
+Analyzes git tags and commits since the previous release, formats an executive-level changelog with highlights, bug fixes, breaking changes, and publishes via GitHub CLI:
+```bash
+# Generate release notes to file
+node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 milestone release" -o RELEASE_NOTES.md
+
+# Generate and publish GitHub Release for tag
+node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: Production release v1.2.0"
 ```
 
 ---
@@ -231,7 +241,7 @@ In Claude Code, invoke the skill:
 ```
 Or via a prompt:
 ```text
-Activate just-code-claude mode. You build the code architecture and logic, and delegate all copy, documentation, commits, and PRs to Gemini.
+Activate just-code-claude mode. You build the code architecture and logic, and delegate all copy, documentation, commits, PRs, and releases to Gemini.
 ```
 
 ---
@@ -327,9 +337,7 @@ node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -o src/local
 
 ---
 
-### 5. Workflow: Git Commit Messages & PR Descriptions
-
-When committing code or opening a pull request:
+### 5. Workflow: Git Commits, PRs & GitHub Releases
 
 ```bash
 # Option 1: Commit directly with Conventional Commits
@@ -339,8 +347,14 @@ node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Added MF
 node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -o .commit_msg.tmp
 git commit -F .commit_msg.tmp
 
-# Option 3: Generate GitHub PR Description
-node scripts/agy_call.js --pr-desc -m "4 argon" -e high -o PULL_REQUEST.md
+# Option 3: Generate GitHub PR Description with 4 argon
+node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Frontend state architecture upgrade" -o PULL_REQUEST.md
+
+# Option 4: Generate GitHub Release Notes
+node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 milestone release" -o RELEASE_NOTES.md
+
+# Option 5: Publish GitHub Release via GitHub CLI
+node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: Official stable v1.2.0 release"
 ```
 
 ---
@@ -353,7 +367,7 @@ Usage: node scripts/agy_call.js [options]
 
 Supported Models:
   - '3.8 flash' (gemini-3.8-flash) [Default]  : Ultra-fast, ideal for UI copy, components, commits
-  - '4 argon'   (gemini-4-argon)              : Maximum reasoning depth, architecture docs, PR specs
+  - '4 argon'   (gemini-4-argon)              : Maximum reasoning depth, architecture docs, PR specs, releases
 
 Reasoning Effort:
   -e, --effort <low|medium|high|xhigh|max>    : Configure reasoning budget / effort (Default: medium)
@@ -362,6 +376,8 @@ Git & GitHub Integration:
   --commit-msg                                : Analyze git diff and generate Conventional Commit message
   --commit                                    : Analyze git diff, generate message and execute git commit
   --pr-desc                                   : Analyze git diff and generate GitHub PR description in Markdown
+  --release-notes                             : Analyze git tags/log and draft comprehensive GitHub Release Notes
+  --release [tag]                             : Generate GitHub Release Notes and publish via GitHub CLI (gh release create)
 
 Execution Backends:
   1. Direct Gemini API: Used when GEMINI_API_KEY is present or with -b api.
@@ -414,14 +430,14 @@ just-code-claude/
 ├── install.ps1              # Windows PowerShell installation script
 ├── install.sh               # Linux/macOS installation script
 ├── scripts/
-│   ├── agy_call.js          # Node.js dual-backend runner (Zero dependencies)
-│   ├── agy_call.py          # Python dual-backend runner (Standard library only)
+│   ├── agy_call.js          # Node.js dual-backend runner (Git commits/PRs/Releases built-in)
+│   ├── agy_call.py          # Python dual-backend runner (Git commits/PRs/Releases built-in)
 │   └── test_skill.js        # Automated end-to-end verification test suite
 ├── examples/
 │   ├── before_code.tsx      # Code sample featuring rich __AGY__ placeholders
 │   └── ui_spec.json         # Localization specification example
 └── templates/
-    └── prompt_templates.md  # Detailed prompt templates for UX copy, docs, and git commits
+    └── prompt_templates.md  # Detailed prompt templates for UX copy, docs, git commits, and releases
 ```
 
 ---

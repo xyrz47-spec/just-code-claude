@@ -1,13 +1,13 @@
 ---
 name: just-code-claude
-description: "Strict division of labor: Claude handles 100% of the code architecture and logic, while delegating ALL natural language text generation (documentation, READMEs, guides, Git commit messages, PR descriptions, and in-code string literals inside quotes) to Google Gemini ('3.8 flash' or '4 argon' with customizable reasoning effort) via 'agy' CLI or Direct Gemini API. Triggers when invoked via /just-code-claude, or when instructed to separate coding from text writing."
+description: "Strict division of labor: Claude handles 100% of the code architecture and logic, while delegating ALL natural language text generation (documentation, READMEs, guides, Git commit messages, PR descriptions, GitHub release notes, and in-code string literals inside quotes) to Google Gemini ('3.8 flash' or '4 argon' with customizable reasoning effort) via 'agy' CLI or Direct Gemini API. Triggers when invoked via /just-code-claude, or when instructed to separate coding from text writing."
 ---
 
 # Just Code, Claude (`/just-code-claude`)
 
 > **"Claude writes code. Gemini writes text."**  
 > Claude handles all architecture, logic, algorithms, types, and syntax.  
-> Gemini (`3.8 flash` or `4 argon` via `agy` CLI or Direct Gemini API) generates all human-facing text, documentation, UI copy, in-code string literals, Git commit messages, and PR descriptions with controllable reasoning effort.
+> Gemini (`3.8 flash` or `4 argon` via `agy` CLI or Direct Gemini API) generates all human-facing text, documentation, UI copy, in-code string literals, Git commit messages, PR descriptions, and GitHub Release notes with controllable reasoning effort.
 
 ---
 
@@ -16,13 +16,13 @@ description: "Strict division of labor: Claude handles 100% of the code architec
 When this skill is active:
 
 1. **FORBIDDEN FOR CLAUDE**:
-   - Composing text deliverables directly: README, documentation, user guides, summaries, release notes, commit messages, and PR descriptions.
+   - Composing text deliverables directly: README, documentation, user guides, summaries, release notes, changelogs, commit messages, and PR descriptions.
    - Composing human-facing text inside code quotes (`""` or `''`): UI button labels, modal dialogs, error messages, form placeholders, toast notifications, and docstrings.
 2. **CLAUDE'S EXCLUSIVE RESPONSIBILITIES**:
    - Writing code structure, functions, classes, AST, interfaces, data pipelines, CSS styling, tests, and configuration files.
    - Formulating **detailed, high-context prompt directives** specifying Context, Intent, Tone, Constraints, and Target Language for Gemini.
    - Calling the bundled `scripts/agy_call.js` (or `agy` CLI / Direct Gemini API) to retrieve the generated text.
-   - Integrating the generated copy into the codebase, git history, and documentation.
+   - Integrating the generated copy into the codebase, git history, and GitHub Releases.
 
 ---
 
@@ -33,12 +33,12 @@ The workflow supports exactly two production models and configurable reasoning e
 | Model | Canonical Name | Best Suited For | Default Effort |
 | :--- | :--- | :--- | :--- |
 | **`3.8 flash`** *(Default)* | `gemini-3.8-flash` | Ultra-fast UI copy, button labels, modal dialogs, form errors, toasts, Git commit messages | `medium` |
-| **`4 argon`** | `gemini-4-argon` | Deep reasoning, system architecture, API specifications, release notes, GitHub PR descriptions | `high` |
+| **`4 argon`** | `gemini-4-argon` | Deep reasoning, system architecture, API specifications, release notes, GitHub PR descriptions, changelogs | `high` |
 
 ### Reasoning Effort Levels (`-e, --effort`):
 - `low`: Microcopy, single labels, button text (instantaneous).
 - `medium` *(Default)*: Modals, error alerts, commit messages, component tooltips.
-- `high`: Comprehensive technical documentation, architecture guides, GitHub PR descriptions.
+- `high`: Comprehensive technical documentation, architecture guides, GitHub PR descriptions, GitHub Release notes.
 - `xhigh` / `max`: In-depth whitepapers, multi-step migration guides, complex architecture rationale.
 
 ---
@@ -46,10 +46,10 @@ The workflow supports exactly two production models and configurable reasoning e
 ## 3. Detailed Prompting Standard for Claude (Rich Context Directives)
 
 > [!IMPORTANT]
-> **Vague prompts are strictly forbidden.** Claude must NEVER output shallow placeholders like `__AGY__("error message")` or `__AGY__("button")`, nor generic commit messages like `git commit -m "update files"`. Gemini produces world-class copy only when provided with rich engineering context.
+> **Vague prompts are strictly forbidden.** Claude must NEVER output shallow placeholders like `__AGY__("error message")` or `__AGY__("button")`, nor generic commit messages or release notes. Gemini produces world-class copy only when provided with rich engineering context.
 
 ### The 5 Mandatory Dimensions Claude Must Specify:
-1. **Context**: Specific component, screen location, trigger state, git diff scope, or module.
+1. **Context**: Specific component, screen location, trigger state, git diff scope, or release milestone.
 2. **Intent**: The exact goal the user is trying to accomplish or what architectural change was made.
 3. **Tone & Voice**: Desired emotional tone, brand persona, technical rigor.
 4. **Constraints**: Exact length budget, Conventional Commits format, casing style, punctuation.
@@ -146,6 +146,25 @@ node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Migration o
 
 ---
 
+### Workflow 5: GitHub Releases & Changelog Generation (`--release-notes`, `--release`)
+
+When preparing or publishing a GitHub Release:
+
+> [!CRITICAL]
+> **Claude must NEVER write release notes or changelogs directly.** Claude delegates to **`4 argon`** with **`high`** effort to analyze all commits and diffs since the previous tag.
+
+#### Option A: Generate Release Notes to File (`--release-notes`)
+```bash
+node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 milestone release. Highlights: Added dual-backend support, effort controls, and native Git automation." -o RELEASE_NOTES.md --lang English
+```
+
+#### Option B: Generate & Publish Release via GitHub CLI (`--release [tag]`)
+```bash
+node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: Official stable v1.2.0 release" --lang English
+```
+
+---
+
 ## 6. Pre-Completion Self-Audit Checklist
 
 Before finishing any turn under `/just-code-claude`, Claude MUST verify:
@@ -156,6 +175,8 @@ Before finishing any turn under `/just-code-claude`, Claude MUST verify:
   👉 **If yes, replace with detailed `__AGY__("Context: ... | Intent: ... | Tone: ... | Constraints: ...")` directives and run `agy_call.js --replace-in-file`.**
 - [ ] Did I write any git commit message or PR description directly?  
   👉 **If yes, run `node scripts/agy_call.js --commit` or `--commit-msg` or `--pr-desc` with detailed context.**
+- [ ] Did I author any GitHub release notes or changelog directly?  
+  👉 **If yes, run `node scripts/agy_call.js --release-notes` or `--release` with `4 argon` & `high` effort.**
 - [ ] Are all in-code placeholders sufficiently detailed with the 5 dimensions?  
   👉 **Ensure no lazy placeholders like `__AGY__("error")` exist.**
 - [ ] Did Gemini generate 100% of the human-facing language?  

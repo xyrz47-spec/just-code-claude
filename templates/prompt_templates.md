@@ -38,7 +38,24 @@ Testing Performed: {UNIT_TESTS_E2E_MANUAL_QA}." -o PULL_REQUEST.md --lang {TARGE
 
 ---
 
-## 3. In-Code UI Strings & Microcopy (`3.8 flash` | Effort: `low` to `medium`)
+## 3. GitHub Releases & Changelogs (`4 argon` | Effort: `high` to `max`)
+
+Use with `--release-notes` or `--release`:
+
+```bash
+# Draft GitHub Release Notes:
+node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: Release {VERSION_TAG}.
+Key Milestones: {SUMMARY_OF_MAJOR_FEATURES}.
+Target Audience: {COMMUNITY_OR_ENTERPRISE_USERS}.
+Migration Impact: {BREAKING_CHANGES_OR_UPGRADE_INSTRUCTIONS}." -o RELEASE_NOTES.md --lang {TARGET_LANGUAGE}
+
+# Draft and publish via GitHub CLI:
+node scripts/agy_call.js --release {VERSION_TAG} -m "4 argon" -e high -p "Context: Stable release {VERSION_TAG}" --lang {TARGET_LANGUAGE}
+```
+
+---
+
+## 4. In-Code UI Strings & Microcopy (`3.8 flash` | Effort: `low` to `medium`)
 
 Use inside `__AGY__("...", "<lang>")` placeholders in React/Vue/Svelte/Mobile components:
 
@@ -60,7 +77,7 @@ Target Language: {TARGET_LANGUAGE}
 
 ---
 
-## 4. Technical Documentation & Architectural Specifications (`4 argon` | Effort: `high` to `max`)
+## 5. Technical Documentation & Architectural Specifications (`4 argon` | Effort: `high` to `max`)
 
 For comprehensive guides, API references, READMEs, and technical whitepapers:
 
@@ -80,18 +97,6 @@ Required Sections:
 Tone & Style: Rigorous, precise, production-grade technical English.
 Constraints: Clean GitHub-Flavored Markdown with typed code examples.
 Target Language: {TARGET_LANGUAGE}." -o docs/{OUTPUT_FILE}.md
-```
-
----
-
-## 5. Empathetic Error Messages & Alerts (`3.8 flash` | Effort: `medium`)
-
-For exception handlers, HTTP 4xx/5xx responses, and toast banners:
-
-```typescript
-throw new PaymentRequiredError(
-  __AGY__("Context: SaaS file storage upload rejection | Intent: Inform user workspace has reached the 50GB plan limit; guide admin to upgrade tier or delete unneeded assets | Tone: Polite, transparent, constructive | Constraints: 2 short sentences under 110 chars | Model: 3.8 flash | Target Language: English")__
-);
 ```
 
 ---
