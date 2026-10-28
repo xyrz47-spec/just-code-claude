@@ -35,29 +35,34 @@
 
 ## 🐙 Git 与 GitHub 深度整合 (Commit, PR & Release)
 
+> [!IMPORTANT]
+> **Claude Code 执行 Release 时的行为规范**:  
+> 当用户指示 Claude Code “发布 v1.2.0”、“编写 GitHub 规范 Release”时，Claude Code 不会使用自身 LLM 直接编写发布文案。  
+> 依据 `~/.claude/rules/just-code-claude.md` 规则，Claude Code 负责提取 Git Tag、日志及 diff 统计信息，并全权交由 Gemini **`4 argon`**（`high` 思考努力值）进行深度综合编写，随后通过 GitHub CLI（`gh release create`）完成正式发布。
+
 ### 1. 一键执行规范提交 (`--commit`)
 ```bash
-node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: 实现二次验证登录弹窗及令牌自动刷新逻辑" -l Chinese
+just-code-claude --commit -m "3.8 flash" -e medium -p "Context: 实现二次验证登录弹窗及令牌自动刷新逻辑" -l Chinese
 ```
 
 ### 2. 预览提交信息 (`--commit-msg`)
 ```bash
-node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: 修复 WebSocket 心跳包竞态条件" -l Chinese
+just-code-claude --commit-msg -m "3.8 flash" -e medium -p "Context: 修复 WebSocket 心跳包竞态条件" -l Chinese
 ```
 
 ### 3. 生成 GitHub PR 详细说明 (`--pr-desc`)
 ```bash
-node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: 前端状态管理从 Redux 迁移至 Zustand" -o PULL_REQUEST.md -l Chinese
+just-code-claude --pr-desc -m "4 argon" -e high -p "Context: 前端状态管理从 Redux 迁移至 Zustand" -o PULL_REQUEST.md -l Chinese
 ```
 
 ### 4. GitHub Release 编写与一键发布 (`--release-notes`, `--release [tag]`)
 分析历史 tag 与差异日志，自动梳理亮点功能、修复与破坏性变更，并通过 GitHub CLI 直接发布：
 ```bash
 # 生成 Release 发布注记文件
-node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 里程碑版本" -o RELEASE_NOTES.md -l Chinese
+just-code-claude --release-notes -m "4 argon" -e high -p "Context: v1.2.0 里程碑版本" -o RELEASE_NOTES.md -l Chinese
 
 # 直接调用 GitHub CLI 发布指定 Tag
-node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: 正式稳定版 v1.2.0" -l Chinese
+just-code-claude --release v1.2.0 -m "4 argon" -e high -p "Context: 正式稳定版 v1.2.0" -l Chinese
 ```
 
 ---

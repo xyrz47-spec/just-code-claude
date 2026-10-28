@@ -338,22 +338,27 @@ node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -o src/local
 
 ### 5. 워크플로우: Git 커밋, PR 설명 및 GitHub 릴리스 작성
 
+> [!IMPORTANT]
+> **클로드 코드가 릴리즈를 수행할 때의 동작 방식**:  
+> 사용자가 클로드 코드에 *"v1.2.0 릴리즈해줘"*, *"GitHub 릴리즈 작성해줘"*, *"새 버전 배포해줘"*라고 지시하면, 클로드 코드는 자체 LLM으로 릴리즈 노트를 직접 작성하지 않습니다.  
+> 클로드 코드는 `~/.claude/rules/just-code-claude.md` 규칙에 따라 Git 변경 사항(태그, 커밋 로그, diff 통계)을 수집하고, 제미나이 **`4 argon`** (`high` 노력치)에 위임하여 전문적인 릴리즈 노트를 생성한 뒤 GitHub CLI(`gh release create`)로 발행합니다.
+
 ```bash
-# 옵션 1: Conventional Commits 메시지 자동 생성 및 즉시 커밋
-node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: MFA 로그인 모달 및 토큰 갱신 로직 추가" --lang Korean
+# 옵션 1: Conventional Commits 메시지 자동 생성 및 즉시 커밋 (3.8 flash)
+just-code-claude --commit -m "3.8 flash" -e medium -p "Context: MFA 로그인 모달 및 토큰 갱신 로직 추가" --lang Korean
 
 # 옵션 2: 커밋 메시지를 파일로 생성하여 검토
-node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -o .commit_msg.tmp
+just-code-claude --commit-msg -m "3.8 flash" -e medium -o .commit_msg.tmp
 git commit -F .commit_msg.tmp
 
 # 옵션 3: 4 argon을 활용한 종합 GitHub PR 설명 작성
-node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: 프론트엔드 상태 관리 아키텍처 개선" -o PULL_REQUEST.md --lang Korean
+just-code-claude --pr-desc -m "4 argon" -e high -p "Context: 프론트엔드 상태 관리 아키텍처 개선" -o PULL_REQUEST.md --lang Korean
 
-# 옵션 4: GitHub 릴리스 노트 작성
-node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 마일스톤 릴리스" -o RELEASE_NOTES.md --lang Korean
+# 옵션 4: 최신 태그/커밋 기반 GitHub 릴리스 노트 작성
+just-code-claude --release-notes -m "4 argon" -e high -p "Context: v1.2.0 마일스톤 릴리스" -o RELEASE_NOTES.md --lang Korean
 
-# 옵션 5: GitHub CLI(gh)를 통한 릴리스 발행
-node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: 공식 안정화 릴리스 v1.2.0" --lang Korean
+# 옵션 5: 릴리스 노트를 생성하고 GitHub CLI(gh release create)로 즉시 공식 발행
+just-code-claude --release v1.2.0 -m "4 argon" -e high -p "Context: 공식 안정화 릴리스 v1.2.0" --lang Korean
 ```
 
 ---

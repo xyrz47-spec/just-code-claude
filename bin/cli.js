@@ -79,13 +79,48 @@ function installSkill(isLocal = false) {
   }
 
   // Directories to copy
-  const dirs = ['scripts', 'templates', 'examples'];
+  const dirs = ['scripts', 'templates', 'examples', 'rules'];
   for (const dir of dirs) {
     const srcDir = path.join(rootDir, dir);
     const destDir = path.join(targetDir, dir);
     if (fs.existsSync(srcDir)) {
       copyDirRecursive(srcDir, destDir);
       console.log(`  ✓ Copied directory ${dir}/`);
+    }
+  }
+
+  // Install global Claude Code rule and register in CLAUDE.md
+  if (!isLocal) {
+    const home = os.homedir();
+    const rulesDir = path.join(home, '.claude', 'rules');
+    if (!fs.existsSync(rulesDir)) {
+      fs.mkdirSync(rulesDir, { recursive: true });
+    }
+    const ruleSrc = path.join(rootDir, 'rules', 'just-code-claude.md');
+    if (fs.existsSync(ruleSrc)) {
+      fs.copyFileSync(ruleSrc, path.join(rulesDir, 'just-code-claude.md'));
+      console.log('  ✓ Installed global rule ~/.claude/rules/just-code-claude.md');
+    }
+
+    const claudeMdPath = path.join(home, '.claude', 'CLAUDE.md');
+    const directive = `
+# just-code-claude
+- **just-code-claude** (~/.claude/skills/just-code-claude/SKILL.md, rule: ~/.claude/rules/just-code-claude.md)
+Claude writes code; Gemini writes text.
+- GitHub Releases: Claude Code must NEVER write release notes or changelogs directly. Run 'just-code-claude --release-notes' (or '--release [tag]') with Gemini 4 argon (high effort), then publish with 'gh release create'.
+- Git Commits: Run 'just-code-claude --commit' or '--commit-msg' (Gemini 3.8 flash).
+- Pull Requests: Run 'just-code-claude --pr-desc' (Gemini 4 argon).
+- In-Code Copy: Insert '__AGY__("...")' directives and run 'just-code-claude --replace-in-file'.
+`;
+    if (fs.existsSync(claudeMdPath)) {
+      const existing = fs.readFileSync(claudeMdPath, 'utf-8');
+      if (!existing.includes('just-code-claude')) {
+        fs.appendFileSync(claudeMdPath, directive, 'utf-8');
+        console.log('  ✓ Registered in ~/.claude/CLAUDE.md');
+      }
+    } else {
+      fs.writeFileSync(claudeMdPath, directive.trimStart(), 'utf-8');
+      console.log('  ✓ Created ~/.claude/CLAUDE.md');
     }
   }
 
@@ -132,9 +167,14 @@ Usage:
   npx just-code-claude uninstall --local   Uninstall skill from current repo
 
 Direct Execution Options (forwarded to agy_call):
-  npx just-code-claude -p "<prompt>" -o <output>
-  npx just-code-claude --replace-in-file <file> [--lang <language>]
-  npx just-code-claude --json-strings <spec.json> -o <output>
+  just-code-claude -p "<prompt>" -o <output>
+  just-code-claude --replace-in-file <file> [--lang <language>]
+  just-code-claude --json-strings <spec.json> -o <output>
+  just-code-claude --commit-msg [-m "3.8 flash"] [-e medium] [--lang <language>]
+  just-code-claude --commit [-m "3.8 flash"] [-e medium] [--lang <language>]
+  just-code-claude --pr-desc [-m "4 argon"] [-e high] [--lang <language>] [-o PULL_REQUEST.md]
+  just-code-claude --release-notes [-m "4 argon"] [-e high] [--lang <language>] [-o RELEASE_NOTES.md]
+  just-code-claude --release [tag] [-m "4 argon"] [-e high] [--lang <language>]
 `);
 }
 

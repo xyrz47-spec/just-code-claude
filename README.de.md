@@ -35,28 +35,33 @@
 
 ## 🐙 Git & GitHub Integration (Commit, PR & Release)
 
+> [!IMPORTANT]
+> **Verhalten von Claude Code bei Releases**:  
+> Wenn der Benutzer Claude Code beauftragt (*"Release v1.2.0 veröffentlichen"*, *"GitHub Release erstellen"*), verfasst Claude Code die Release Notes NICHT selbst mit seinem eigenen Modell.  
+> Gemäß `~/.claude/rules/just-code-claude.md` extrahiert Claude Code die Git-Historie und delegiert das Verfassen der Release Notes an Gemini **`4 argon`** (Aufwand `high`), um das Release anschließend über die GitHub CLI (`gh release create`) zu publizieren.
+
 ### 1. Ein-Klick-Commit (`--commit`)
 ```bash
-node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Implementierung von MFA-Login-Dialog und Token-Refresh" -l German
+just-code-claude --commit -m "3.8 flash" -e medium -p "Context: Implementierung von MFA-Login-Dialog und Token-Refresh" -l German
 ```
 
 ### 2. Commit-Nachricht vorab prüfen (`--commit-msg`)
 ```bash
-node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Behebung von Race Condition beim WebSocket Heartbeat" -l German
+just-code-claude --commit-msg -m "3.8 flash" -e medium -p "Context: Behebung von Race Condition beim WebSocket Heartbeat" -l German
 ```
 
 ### 3. Vollständige GitHub PR-Beschreibung (`--pr-desc`)
 ```bash
-node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Migration des Frontend-State-Managements von Redux zu Zustand" -o PULL_REQUEST.md -l German
+just-code-claude --pr-desc -m "4 argon" -e high -p "Context: Migration des Frontend-State-Managements von Redux zu Zustand" -o PULL_REQUEST.md -l German
 ```
 
 ### 4. GitHub Release Notes & Veröffentlichung (`--release-notes`, `--release [tag]`)
 ```bash
 # Release Notes in Markdown-Datei generieren
-node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: Meilenstein-Release v1.2.0" -o RELEASE_NOTES.md -l German
+just-code-claude --release-notes -m "4 argon" -e high -p "Context: Meilenstein-Release v1.2.0" -o RELEASE_NOTES.md -l German
 
 # GitHub Release direkt veröffentlichen
-node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -l German
+just-code-claude --release v1.2.0 -m "4 argon" -e high -l German
 ```
 
 ---

@@ -11,6 +11,7 @@
     "scripts",
     "templates",
     "examples",
+    "rules",
     "SKILL.md",
     "README*.md",
     "LICENSE",

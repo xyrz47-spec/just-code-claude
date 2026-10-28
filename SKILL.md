@@ -59,11 +59,13 @@ The workflow supports exactly two production models and configurable reasoning e
 
 ## 4. Execution Backends & CLI
 
-The skill provides `scripts/agy_call.js` (Node.js) and `scripts/agy_call.py` (Python) with **zero external dependencies**:
+The skill provides the `just-code-claude` CLI command (backed by `scripts/agy_call.js` in Node.js and `scripts/agy_call.py` in Python) with **zero external dependencies**:
 
-1. **Antigravity CLI (`agy`)**: Pre-authenticated local agent CLI (`--backend agy`).
-2. **Direct Gemini REST API**: Uses `GEMINI_API_KEY` or `--api-key` (`--backend api`).
-3. **Auto Detection (default)**: Uses `agy` if installed; falls back to Direct Gemini API if `GEMINI_API_KEY` is present.
+1. **Global CLI command (`just-code-claude`)**: Installed via `npm link` or `npx just-code-claude`, callable directly from any directory.
+2. **Persistent Claude Code Rule (`~/.claude/rules/just-code-claude.md`)**: Automatically loaded into Claude Code's system context across all sessions to enforce commit, PR, and release delegation.
+3. **Antigravity CLI (`agy`)**: Pre-authenticated local agent CLI (`--backend agy`).
+4. **Direct Gemini REST API**: Uses `GEMINI_API_KEY` or `--api-key` (`--backend api`).
+5. **Auto Detection (default)**: Uses `agy` if installed; falls back to Direct Gemini API if `GEMINI_API_KEY` is present.
 
 ---
 
@@ -148,20 +150,38 @@ node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Migration o
 
 ### Workflow 5: GitHub Releases & Changelog Generation (`--release-notes`, `--release`)
 
-When preparing or publishing a GitHub Release:
+When the user asks Claude Code to prepare, draft, or publish a release (e.g. *"릴리즈해줘"*, *"v1.2.0 배포해줘"*, *"GitHub release 작성해줘"*, *"태그 달고 릴리즈 올려줘"*, *"publish a release"*):
 
 > [!CRITICAL]
-> **Claude must NEVER write release notes or changelogs directly.** Claude delegates to **`4 argon`** with **`high`** effort to analyze all commits and diffs since the previous tag.
+> **Claude Code must NEVER author release notes or changelogs directly using its own LLM.**  
+> Claude Code's responsibility is solely engineering context extraction. The release note synthesis and prose generation MUST be delegated to Gemini (**`4 argon`** with **`high`** effort) to analyze commits, tags, and diffs.
 
-#### Option A: Generate Release Notes to File (`--release-notes`)
-```bash
-node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 milestone release. Highlights: Added dual-backend support, effort controls, and native Git automation." -o RELEASE_NOTES.md --lang English
-```
+#### Claude Code's Step-by-Step Release Protocol:
+1. **Analyze Git Baseline & Scope**:
+   - Query latest tag: `git describe --tags --abbrev=0` (or `git tag --sort=-v:refname`)
+   - Review commit history: `git log <last-tag>..HEAD --oneline`
+   - Review file changes: `git diff <last-tag>..HEAD --stat`
+2. **Formulate High-Context Directives**:
+   - Milestone version (e.g., `v1.2.0`), key architectural highlights, breaking changes, and user's preferred language.
+3. **Execute Delegation Command**:
+   - Claude Code executes `just-code-claude` CLI (or the global script path):
+   ```bash
+   # Option A: Generate RELEASE_NOTES.md for user inspection
+   just-code-claude --release-notes -m "4 argon" -e high -p "Context: v1.2.0 release. Highlights: Added dual-backend support, effort controls, and native Git automation." -o RELEASE_NOTES.md --lang Korean
 
-#### Option B: Generate & Publish Release via GitHub CLI (`--release [tag]`)
-```bash
-node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: Official stable v1.2.0 release" --lang English
-```
+   # Option B: Draft notes and publish directly via GitHub CLI (gh release create)
+   just-code-claude --release v1.2.0 -m "4 argon" -e high -p "Context: Official stable v1.2.0 release" --lang Korean
+   ```
+   *Path fallback*: If `just-code-claude` is not in PATH:
+   - Windows: `node "$env:USERPROFILE\.claude\skills\just-code-claude\scripts\agy_call.js"`
+   - Unix/macOS: `node "$HOME/.claude/skills/just-code-claude/scripts/agy_call.js"`
+   - Local: `node scripts/agy_call.js`
+4. **Publish with GitHub CLI**:
+   - Claude Code reviews the Gemini-authored `RELEASE_NOTES.md` and runs:
+   ```bash
+   gh release create <tag> --notes-file RELEASE_NOTES.md --title "<tag>"
+   ```
+   (Claude Code never uses inline `-n "Claude text"` flags).
 
 ---
 

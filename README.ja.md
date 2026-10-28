@@ -35,29 +35,34 @@
 
 ## 🐙 Git & GitHub 統合（コミット、PR、リリース作成）
 
+> [!IMPORTANT]
+> **Claude Codeによるリリース実行時の動作**:  
+> ユーザーがClaude Codeに「v1.2.0をリリースして」「GitHubリリースを作成して」と指示した場合、Claude Codeは自身のLLMで直接リリースノートを執筆しません。  
+> `~/.claude/rules/just-code-claude.md` のルールに基づき、Gitのタグやコミットログを抽出してGemini **`4 argon`**（`high` 努力値）に委譲し、生成されたリリースノートを用いてGitHub CLI（`gh release create`）で公開します。
+
 ### 1. ワンコマンドでコミット作成 (`--commit`)
 ```bash
-node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: MFAログインモーダルおよびトークン更新ロジックの実装" -l Japanese
+just-code-claude --commit -m "3.8 flash" -e medium -p "Context: MFAログインモーダルおよびトークン更新ロジックの実装" -l Japanese
 ```
 
 ### 2. コミットメッセージの事前確認 (`--commit-msg`)
 ```bash
-node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: WebSocketハートビートの競合状態を修正" -l Japanese
+just-code-claude --commit-msg -m "3.8 flash" -e medium -p "Context: WebSocketハートビートの競合状態を修正" -l Japanese
 ```
 
 ### 3. GitHub PR概要の生成 (`--pr-desc`)
 ```bash
-node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: ReduxからZustandへのフロントエンド状態管理移行" -o PULL_REQUEST.md -l Japanese
+just-code-claude --pr-desc -m "4 argon" -e high -p "Context: ReduxからZustandへのフロントエンド状態管理移行" -o PULL_REQUEST.md -l Japanese
 ```
 
 ### 4. GitHub リリースノートの作成と公開 (`--release-notes`, `--release [tag]`)
-タグ間のコミットログを分析し、機能追加、不具合修正、破壊的変更を整理した高品質なリリースノートを作成・公開します：
+タグ間のコミットログを分析し、機能追加、不具合修正、破壊적変更を整理した高品質なリリースノートを作成・公開します：
 ```bash
 # リリースノートをMarkdownファイルとして生成
-node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 マイルストーンリリース" -o RELEASE_NOTES.md -l Japanese
+just-code-claude --release-notes -m "4 argon" -e high -p "Context: v1.2.0 マイルストーンリリース" -o RELEASE_NOTES.md -l Japanese
 
 # GitHub CLI経由で指定タグのリリースを直ちに公開
-node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: 公式安定版リリース v1.2.0" -l Japanese
+just-code-claude --release v1.2.0 -m "4 argon" -e high -p "Context: 公式安定版リリース v1.2.0" -l Japanese
 ```
 
 ---

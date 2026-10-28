@@ -339,22 +339,27 @@ node scripts/agy_call.js --json-strings ui_spec.json -m "3.8 flash" -o src/local
 
 ### 5. Workflow: Git Commits, PRs & GitHub Releases
 
+> [!IMPORTANT]
+> **How Claude Code executes releases**:  
+> When you instruct Claude Code to *"release v1.2.0"*, *"create a GitHub release"*, or *"publish release notes"*, Claude Code does NOT write the release notes itself using its own model.  
+> Governed by `~/.claude/rules/just-code-claude.md`, Claude Code extracts git metadata (tags, commit history, diff statistics), formulates Context Directives, and delegates release note synthesis to Gemini **`4 argon`** (`high` effort), then publishes the release via GitHub CLI (`gh release create`).
+
 ```bash
-# Option 1: Commit directly with Conventional Commits
-node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Added MFA login modal and token refresh logic" --lang English
+# Option 1: Commit directly with Conventional Commits (3.8 flash)
+just-code-claude --commit -m "3.8 flash" -e medium -p "Context: Added MFA login modal and token refresh logic" --lang English
 
 # Option 2: Generate commit message to file
-node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -o .commit_msg.tmp
+just-code-claude --commit-msg -m "3.8 flash" -e medium -o .commit_msg.tmp
 git commit -F .commit_msg.tmp
 
 # Option 3: Generate GitHub PR Description with 4 argon
-node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Frontend state architecture upgrade" -o PULL_REQUEST.md
+just-code-claude --pr-desc -m "4 argon" -e high -p "Context: Frontend state architecture upgrade" -o PULL_REQUEST.md
 
-# Option 4: Generate GitHub Release Notes
-node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: v1.2.0 milestone release" -o RELEASE_NOTES.md
+# Option 4: Generate GitHub Release Notes from git history
+just-code-claude --release-notes -m "4 argon" -e high -p "Context: v1.2.0 milestone release" -o RELEASE_NOTES.md
 
 # Option 5: Publish GitHub Release via GitHub CLI
-node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -p "Context: Official stable v1.2.0 release"
+just-code-claude --release v1.2.0 -m "4 argon" -e high -p "Context: Official stable v1.2.0 release"
 ```
 
 ---

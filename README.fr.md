@@ -35,28 +35,33 @@
 
 ## 🐙 Intégration Git & GitHub (Commits, PRs & Releases)
 
+> [!IMPORTANT]
+> **Comportement de Claude Code lors des Releases**:  
+> Lorsque l'utilisateur demande à Claude Code de *"publier la release v1.2.0"* ou de *"créer une release GitHub"*, Claude Code NE rédige PAS les notes de version avec son propre LLM.  
+> Conformément à `~/.claude/rules/just-code-claude.md`, Claude Code extrait l'historique Git et délègue la rédaction à Gemini **`4 argon`** (effort `high`), puis publie la version via GitHub CLI (`gh release create`).
+
 ### 1. Commit automatique en une seule commande (`--commit`)
 ```bash
-node scripts/agy_call.js --commit -m "3.8 flash" -e medium -p "Context: Implémentation du modal MFA et de l'actualisation de token" -l French
+just-code-claude --commit -m "3.8 flash" -e medium -p "Context: Implémentation du modal MFA et de l'actualisation de token" -l French
 ```
 
 ### 2. Prévisualisation du message de commit (`--commit-msg`)
 ```bash
-node scripts/agy_call.js --commit-msg -m "3.8 flash" -e medium -p "Context: Correction d'une race condition sur WebSocket heartbeat" -l French
+just-code-claude --commit-msg -m "3.8 flash" -e medium -p "Context: Correction d'une race condition sur WebSocket heartbeat" -l French
 ```
 
 ### 3. Description complète de GitHub PR (`--pr-desc`)
 ```bash
-node scripts/agy_call.js --pr-desc -m "4 argon" -e high -p "Context: Migration du state management de Redux vers Zustand" -o PULL_REQUEST.md -l French
+just-code-claude --pr-desc -m "4 argon" -e high -p "Context: Migration du state management de Redux vers Zustand" -o PULL_REQUEST.md -l French
 ```
 
 ### 4. Notes de version GitHub Releases et publication (`--release-notes`, `--release [tag]`)
 ```bash
 # Générer les notes de version
-node scripts/agy_call.js --release-notes -m "4 argon" -e high -p "Context: Version v1.2.0" -o RELEASE_NOTES.md -l French
+just-code-claude --release-notes -m "4 argon" -e high -p "Context: Version v1.2.0" -o RELEASE_NOTES.md -l French
 
 # Publier la release sur GitHub
-node scripts/agy_call.js --release v1.2.0 -m "4 argon" -e high -l French
+just-code-claude --release v1.2.0 -m "4 argon" -e high -l French
 ```
 
 ---
